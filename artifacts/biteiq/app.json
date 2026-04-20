@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "BiteIQ",
+    "slug": "biteiq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "biteiq",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E1718"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "BiteIQ uses your camera to recognize food in your meals.",
+        "NSPhotoLibraryUsageDescription": "BiteIQ accesses your photo library to log meals from existing photos.",
+        "NSMicrophoneUsageDescription": "BiteIQ uses your microphone for voice-based meal logging."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "RECORD_AUDIO", "READ_MEDIA_IMAGES"]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BiteIQ accesses your photos to log meals.",
+          "cameraPermission": "BiteIQ uses your camera to recognize meals."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

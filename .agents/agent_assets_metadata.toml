@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "7KiGogvijZKEqHaR4xt08"
+uri = "file://artifacts/biteiq/assets/images/icon.png"
+type = "image"
+title = "biteiq app icon"
