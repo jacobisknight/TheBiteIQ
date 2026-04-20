@@ -19,6 +19,7 @@ import { WeightChart } from "@/components/WeightChart";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { sumMeals, todayKey } from "@/lib/nutrition";
+import { kgToLbs, parseWeight, type WeightUnit } from "@/lib/units";
 
 export default function ProgressScreen() {
   const colors = useColors();
@@ -26,6 +27,7 @@ export default function ProgressScreen() {
   const { weights, addWeight, meals, user, streak } = useApp();
   const { width } = useWindowDimensions();
   const [input, setInput] = useState("");
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
 
   const sortedWeights = useMemo(
     () => [...weights].sort((a, b) => a.loggedAt - b.loggedAt),
@@ -54,16 +56,26 @@ export default function ProgressScreen() {
   ).length;
 
   const submitWeight = async () => {
-    const v = parseFloat(input.replace(",", "."));
-    if (Number.isNaN(v) || v < 20 || v > 400) {
-      Alert.alert("Enter a valid weight in kg.");
+    const kg = parseWeight(input, weightUnit);
+    if (!kg || kg < 20 || kg > 400) {
+      Alert.alert(`Enter a valid weight in ${weightUnit}.`);
       return;
     }
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    await addWeight(v);
+    await addWeight(kg);
     setInput("");
+  };
+
+  const formatWeight = (kg: number) => {
+    const v = weightUnit === "kg" ? kg : kgToLbs(kg);
+    return `${v.toFixed(1)} ${weightUnit}`;
+  };
+  const formatDelta = (kg: number) => {
+    const v = weightUnit === "kg" ? kg : kgToLbs(kg);
+    const sign = v >= 0 ? "+" : "";
+    return `${sign}${v.toFixed(1)} ${weightUnit}`;
   };
 
   return (
@@ -115,7 +127,7 @@ export default function ProgressScreen() {
             </Text>
             <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
               {currentW
-                ? `${currentW.toFixed(1)} kg current · ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} kg overall`
+                ? `${formatWeight(currentW)} current · ${formatDelta(delta)} overall`
                 : "No entries yet"}
             </Text>
           </View>
@@ -133,7 +145,7 @@ export default function ProgressScreen() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder="Weight in kg"
+            placeholder={`Weight in ${weightUnit}`}
             placeholderTextColor={colors.mutedForeground}
             keyboardType="decimal-pad"
             style={[
@@ -145,6 +157,31 @@ export default function ProgressScreen() {
               },
             ]}
           />
+          <View style={[styles.unitSeg, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            {(["kg", "lbs"] as WeightUnit[]).map((u) => {
+              const active = u === weightUnit;
+              return (
+                <Pressable
+                  key={u}
+                  onPress={() => setWeightUnit(u)}
+                  style={[
+                    styles.unitSegItem,
+                    { backgroundColor: active ? colors.primary : "transparent" },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: active ? colors.primaryForeground : colors.foreground,
+                      fontFamily: "Inter_700Bold",
+                      fontSize: 12,
+                    }}
+                  >
+                    {u}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Pressable
             onPress={submitWeight}
             style={({ pressed }) => [
@@ -265,7 +302,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   cardMeta: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
-  inputRow: { flexDirection: "row", gap: 10 },
+  inputRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  unitSeg: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+  },
+  unitSegItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 7,
+  },
   input: {
     flex: 1,
     borderWidth: 1,

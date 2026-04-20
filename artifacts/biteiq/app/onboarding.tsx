@@ -19,6 +19,12 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { buildPlan } from "@/lib/nutrition";
+import {
+  parseHeight,
+  parseWeight,
+  type LengthUnit,
+  type WeightUnit,
+} from "@/lib/units";
 import type { ActivityLevel, Goal, Sex } from "@/types";
 
 const ACTIVITY: { key: ActivityLevel; label: string; hint: string }[] = [
@@ -45,17 +51,22 @@ export default function Onboarding() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<Sex>("male");
-  const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const [weightInput, setWeightInput] = useState("");
+  const [heightUnit, setHeightUnit] = useState<LengthUnit>("cm");
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
   const [activity, setActivity] = useState<ActivityLevel>("moderate");
   const [goal, setGoal] = useState<Goal>("maintain");
   const [glp1Mode, setGlp1Mode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const totalSteps = 5;
+  const heightCm = parseHeight(heightInput, heightUnit);
+  const weightKg = parseWeight(weightInput, weightUnit);
+
   const canNext = (() => {
     if (step === 0) return name.trim().length > 0 && Number(age) > 0;
-    if (step === 1) return Number(heightCm) > 0 && Number(weightKg) > 0;
+    if (step === 1) return heightCm > 0 && weightKg > 0;
     return true;
   })();
 
@@ -66,8 +77,8 @@ export default function Onboarding() {
         name: name.trim() || "Friend",
         age: Number(age),
         sex,
-        heightCm: Number(heightCm),
-        weightKg: Number(weightKg),
+        heightCm,
+        weightKg,
         activity,
         goal,
         glp1Mode: glp1Mode || goal === "glp1",
@@ -92,12 +103,12 @@ export default function Onboarding() {
   };
 
   const preview = (() => {
-    if (!Number(heightCm) || !Number(weightKg) || !Number(age)) return null;
+    if (!heightCm || !weightKg || !Number(age)) return null;
     return buildPlan({
       age: Number(age),
       sex,
-      heightCm: Number(heightCm),
-      weightKg: Number(weightKg),
+      heightCm,
+      weightKg,
       activity,
       goal,
       glp1Mode: glp1Mode || goal === "glp1",
@@ -173,19 +184,29 @@ export default function Onboarding() {
               title="Body basics"
               subtitle="Used to calculate your BMR with the Mifflin-St Jeor formula."
             >
-              <Field
-                label="Height (cm)"
-                value={heightCm}
-                onChangeText={setHeightCm}
-                placeholder="178"
-                keyboardType="number-pad"
+              <UnitField
+                label="Height"
+                value={heightInput}
+                onChangeText={setHeightInput}
+                placeholder={heightUnit === "cm" ? "178" : "70"}
+                units={[
+                  { key: "cm", label: "cm" },
+                  { key: "in", label: "in" },
+                ]}
+                unit={heightUnit}
+                onUnitChange={(u) => setHeightUnit(u as LengthUnit)}
               />
-              <Field
-                label="Weight (kg)"
-                value={weightKg}
-                onChangeText={setWeightKg}
-                placeholder="74"
-                keyboardType="decimal-pad"
+              <UnitField
+                label="Weight"
+                value={weightInput}
+                onChangeText={setWeightInput}
+                placeholder={weightUnit === "kg" ? "74" : "165"}
+                units={[
+                  { key: "kg", label: "kg" },
+                  { key: "lbs", label: "lbs" },
+                ]}
+                unit={weightUnit}
+                onUnitChange={(u) => setWeightUnit(u as WeightUnit)}
               />
             </StepContainer>
           ) : null}
@@ -402,6 +423,76 @@ function Field({
   );
 }
 
+function UnitField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  units,
+  unit,
+  onUnitChange,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  units: { key: string; label: string }[];
+  unit: string;
+  onUnitChange: (v: string) => void;
+}) {
+  const colors = useColors();
+  return (
+    <View
+      style={[
+        styles.field,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
+      <View style={styles.unitRow}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.mutedForeground}
+          keyboardType="decimal-pad"
+          style={[
+            styles.fieldInput,
+            { color: colors.foreground, flex: 1, paddingTop: 0 },
+          ]}
+        />
+        <View style={[styles.unitSeg, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {units.map((u) => {
+            const active = u.key === unit;
+            return (
+              <Pressable
+                key={u.key}
+                onPress={() => onUnitChange(u.key)}
+                style={[
+                  styles.unitSegItem,
+                  { backgroundColor: active ? colors.primary : "transparent" },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: active ? colors.primaryForeground : colors.foreground,
+                    fontFamily: "Inter_700Bold",
+                    fontSize: 12,
+                  }}
+                >
+                  {u.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function SegPicker<T extends string>({
   label,
   value,
@@ -571,6 +662,23 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 14,
     borderWidth: 1,
+  },
+  unitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 6,
+  },
+  unitSeg: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+  },
+  unitSegItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 7,
   },
   segItem: {
     flex: 1,

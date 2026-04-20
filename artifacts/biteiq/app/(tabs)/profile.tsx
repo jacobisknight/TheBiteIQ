@@ -17,6 +17,14 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { buildPlan } from "@/lib/nutrition";
+import {
+  displayHeight,
+  displayWeight,
+  parseHeight,
+  parseWeight,
+  type LengthUnit,
+  type WeightUnit,
+} from "@/lib/units";
 import type { ActivityLevel, Goal, Sex } from "@/types";
 
 const SEX: { key: Sex; label: string }[] = [
@@ -46,8 +54,10 @@ export default function ProfileScreen() {
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
-  const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const [weightInput, setWeightInput] = useState("");
+  const [heightUnit, setHeightUnit] = useState<LengthUnit>("cm");
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
   const [sex, setSex] = useState<Sex>("male");
   const [activity, setActivity] = useState<ActivityLevel>("moderate");
   const [goal, setGoal] = useState<Goal>("maintain");
@@ -57,21 +67,36 @@ export default function ProfileScreen() {
     if (!user) return;
     setName(user.name);
     setAge(String(user.age));
-    setHeightCm(String(user.heightCm));
-    setWeightKg(String(user.weightKg));
+    setHeightInput(displayHeight(user.heightCm, heightUnit));
+    setWeightInput(displayWeight(user.weightKg, weightUnit));
     setSex(user.sex);
     setActivity(user.activity);
     setGoal(user.goal);
     setGlp1Mode(user.glp1Mode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const onHeightUnitChange = (u: LengthUnit) => {
+    const cm = parseHeight(heightInput, heightUnit);
+    setHeightUnit(u);
+    if (cm > 0) setHeightInput(displayHeight(cm, u));
+  };
+  const onWeightUnitChange = (u: WeightUnit) => {
+    const kg = parseWeight(weightInput, weightUnit);
+    setWeightUnit(u);
+    if (kg > 0) setWeightInput(displayWeight(kg, u));
+  };
+
   if (!user) return null;
+
+  const heightCm = parseHeight(heightInput, heightUnit) || user.heightCm;
+  const weightKg = parseWeight(weightInput, weightUnit) || user.weightKg;
 
   const previewPlan = buildPlan({
     age: Number(age) || user.age,
     sex,
-    heightCm: Number(heightCm) || user.heightCm,
-    weightKg: Number(weightKg) || user.weightKg,
+    heightCm,
+    weightKg,
     activity,
     goal,
     glp1Mode,
@@ -79,8 +104,8 @@ export default function ProfileScreen() {
 
   const save = async () => {
     const ageN = Number(age);
-    const hN = Number(heightCm);
-    const wN = Number(weightKg);
+    const hN = parseHeight(heightInput, heightUnit);
+    const wN = parseWeight(weightInput, weightUnit);
     if (!ageN || !hN || !wN) {
       Alert.alert("Please fill in age, height, and weight.");
       return;
@@ -152,8 +177,28 @@ export default function ProfileScreen() {
         <SectionHeader label="ABOUT YOU" />
         <Field label="Name" value={name} onChangeText={setName} />
         <Field label="Age" value={age} onChangeText={setAge} keyboardType="number-pad" />
-        <Field label="Height (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="number-pad" />
-        <Field label="Weight (kg)" value={weightKg} onChangeText={setWeightKg} keyboardType="decimal-pad" />
+        <UnitField
+          label="Height"
+          value={heightInput}
+          onChangeText={setHeightInput}
+          units={[
+            { key: "cm", label: "cm" },
+            { key: "in", label: "in" },
+          ]}
+          unit={heightUnit}
+          onUnitChange={(u) => onHeightUnitChange(u as LengthUnit)}
+        />
+        <UnitField
+          label="Weight"
+          value={weightInput}
+          onChangeText={setWeightInput}
+          units={[
+            { key: "kg", label: "kg" },
+            { key: "lbs", label: "lbs" },
+          ]}
+          unit={weightUnit}
+          onUnitChange={(u) => onWeightUnitChange(u as WeightUnit)}
+        />
         <Group label="Sex" options={SEX} value={sex} onChange={(v) => setSex(v as Sex)} />
       </View>
 
@@ -233,6 +278,73 @@ function Field(props: {
         placeholderTextColor={colors.mutedForeground}
         style={[styles.fieldInput, { color: colors.foreground }]}
       />
+    </View>
+  );
+}
+
+function UnitField({
+  label,
+  value,
+  onChangeText,
+  units,
+  unit,
+  onUnitChange,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  units: { key: string; label: string }[];
+  unit: string;
+  onUnitChange: (v: string) => void;
+}) {
+  const colors = useColors();
+  return (
+    <View
+      style={[
+        styles.field,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
+      <View style={styles.unitRow}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          placeholderTextColor={colors.mutedForeground}
+          style={[
+            styles.fieldInput,
+            { color: colors.foreground, flex: 1, paddingTop: 0 },
+          ]}
+        />
+        <View style={[styles.unitSeg, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {units.map((u) => {
+            const active = u.key === unit;
+            return (
+              <Pressable
+                key={u.key}
+                onPress={() => onUnitChange(u.key)}
+                style={[
+                  styles.unitSegItem,
+                  { backgroundColor: active ? colors.primary : "transparent" },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: active ? colors.primaryForeground : colors.foreground,
+                    fontFamily: "Inter_700Bold",
+                    fontSize: 12,
+                  }}
+                >
+                  {u.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -329,6 +441,23 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  unitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 6,
+  },
+  unitSeg: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+  },
+  unitSegItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 7,
+  },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 9,
