@@ -1,18 +1,21 @@
+import { useAuth } from "@clerk/expo";
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import { buildPlan, sumMeals, todayKey } from "@/lib/nutrition";
 import {
-  STORAGE_KEYS,
+  buildStorageKeys,
   loadJson,
   makeId,
   saveJson,
+  type StorageKeys,
 } from "@/lib/storage";
 import type {
   ActivityLevel,
@@ -74,6 +77,7 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { userId, isLoaded: authLoaded } = useAuth();
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [meals, setMeals] = useState<MealEntry[]>([]);
@@ -82,16 +86,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [mealPlan, setMealPlanState] = useState<MealPlan | null>(null);
   const [workoutPlan, setWorkoutPlanState] = useState<WorkoutPlan | null>(null);
 
+  const keysRef = useRef<StorageKeys>(buildStorageKeys(null));
+
   useEffect(() => {
+    if (!authLoaded) return;
+    const nextKeys = buildStorageKeys(userId ?? null);
+    keysRef.current = nextKeys;
+    setReady(false);
+    setUser(null);
+    setMeals([]);
+    setWeights([]);
+    setCoachMessages([]);
+    setMealPlanState(null);
+    setWorkoutPlanState(null);
+    let cancelled = false;
     (async () => {
       const [u, m, w, cm, mp, wp] = await Promise.all([
-        loadJson<UserProfile | null>(STORAGE_KEYS.user, null),
-        loadJson<MealEntry[]>(STORAGE_KEYS.meals, []),
-        loadJson<WeightEntry[]>(STORAGE_KEYS.weights, []),
-        loadJson<CoachMessage[]>(STORAGE_KEYS.coachMessages, []),
-        loadJson<MealPlan | null>(STORAGE_KEYS.mealPlan, null),
-        loadJson<WorkoutPlan | null>(STORAGE_KEYS.workoutPlan, null),
+        loadJson<UserProfile | null>(nextKeys.user, null),
+        loadJson<MealEntry[]>(nextKeys.meals, []),
+        loadJson<WeightEntry[]>(nextKeys.weights, []),
+        loadJson<CoachMessage[]>(nextKeys.coachMessages, []),
+        loadJson<MealPlan | null>(nextKeys.mealPlan, null),
+        loadJson<WorkoutPlan | null>(nextKeys.workoutPlan, null),
       ]);
+      if (cancelled) return;
       setUser(u);
       setMeals(m);
       setWeights(w);
@@ -100,16 +118,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setWorkoutPlanState(wp);
       setReady(true);
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoaded, userId]);
 
   const persistMeals = useCallback(async (next: MealEntry[]) => {
     setMeals(next);
-    await saveJson(STORAGE_KEYS.meals, next);
+    await saveJson(keysRef.current.meals, next);
   }, []);
 
   const persistWeights = useCallback(async (next: WeightEntry[]) => {
     setWeights(next);
-    await saveJson(STORAGE_KEYS.weights, next);
+    await saveJson(keysRef.current.weights, next);
   }, []);
 
   const completeOnboarding = useCallback(async (input: OnboardingInput) => {
@@ -120,7 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createdAt: Date.now(),
     };
     setUser(profile);
-    await saveJson(STORAGE_KEYS.user, profile);
+    await saveJson(keysRef.current.user, profile);
     if (input.weightKg > 0) {
       const next: WeightEntry[] = [
         ...weights,
@@ -150,7 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       const next: UserProfile = { ...merged, ...plan };
       setUser(next);
-      await saveJson(STORAGE_KEYS.user, next);
+      await saveJson(keysRef.current.user, next);
     },
     [user],
   );
@@ -219,7 +240,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
         const merged: UserProfile = { ...updated, ...plan };
         setUser(merged);
-        await saveJson(STORAGE_KEYS.user, merged);
+        await saveJson(keysRef.current.user, merged);
       }
     },
     [persistWeights, user, weights],
@@ -229,24 +250,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async (msg: CoachMessage) => {
       const next = [...coachMessages, msg].slice(-100);
       setCoachMessages(next);
-      await saveJson(STORAGE_KEYS.coachMessages, next);
+      await saveJson(keysRef.current.coachMessages, next);
     },
     [coachMessages],
   );
 
   const clearCoachChat = useCallback(async () => {
     setCoachMessages([]);
-    await saveJson(STORAGE_KEYS.coachMessages, []);
+    await saveJson(keysRef.current.coachMessages, []);
   }, []);
 
   const setMealPlan = useCallback(async (plan: MealPlan | null) => {
     setMealPlanState(plan);
-    await saveJson(STORAGE_KEYS.mealPlan, plan);
+    await saveJson(keysRef.current.mealPlan, plan);
   }, []);
 
   const setWorkoutPlan = useCallback(async (plan: WorkoutPlan | null) => {
     setWorkoutPlanState(plan);
-    await saveJson(STORAGE_KEYS.workoutPlan, plan);
+    await saveJson(keysRef.current.workoutPlan, plan);
   }, []);
 
   const resetAll = useCallback(async () => {
@@ -257,12 +278,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMealPlanState(null);
     setWorkoutPlanState(null);
     await Promise.all([
-      saveJson(STORAGE_KEYS.user, null),
-      saveJson(STORAGE_KEYS.meals, []),
-      saveJson(STORAGE_KEYS.weights, []),
-      saveJson(STORAGE_KEYS.coachMessages, []),
-      saveJson(STORAGE_KEYS.mealPlan, null),
-      saveJson(STORAGE_KEYS.workoutPlan, null),
+      saveJson(keysRef.current.user, null),
+      saveJson(keysRef.current.meals, []),
+      saveJson(keysRef.current.weights, []),
+      saveJson(keysRef.current.coachMessages, []),
+      saveJson(keysRef.current.mealPlan, null),
+      saveJson(keysRef.current.workoutPlan, null),
     ]);
   }, []);
 

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth, useUser } from "@clerk/expo";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -51,6 +52,15 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, updateUser, resetAll } = useApp();
+  const { signOut } = useAuth();
+  const { user: clerkUser } = useUser();
+
+  const confirmSignOut = () => {
+    Alert.alert("Sign out?", "You'll need to sign in again to access your data.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign out", style: "destructive", onPress: () => signOut() },
+    ]);
+  };
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
@@ -243,6 +253,30 @@ export default function ProfileScreen() {
       </View>
 
       <PrimaryButton label="Save changes" onPress={save} />
+
+      <View
+        style={[
+          styles.accountCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.accountLabel, { color: colors.mutedForeground }]}>
+            SIGNED IN AS
+          </Text>
+          <Text style={[styles.accountEmail, { color: colors.foreground }]}>
+            {clerkUser?.primaryEmailAddress?.emailAddress ??
+              clerkUser?.emailAddresses?.[0]?.emailAddress ??
+              "Authenticated"}
+          </Text>
+        </View>
+        <Pressable onPress={confirmSignOut} style={styles.signOutBtn} hitSlop={8}>
+          <Feather name="log-out" size={16} color={colors.foreground} />
+          <Text style={[styles.signOutText, { color: colors.foreground }]}>
+            Sign out
+          </Text>
+        </Pressable>
+      </View>
 
       <Pressable onPress={confirmReset} style={styles.dangerRow}>
         <Feather name="trash-2" size={16} color={colors.destructive} />
@@ -482,4 +516,27 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   dangerText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  accountCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  accountLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+  },
+  accountEmail: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  signOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  signOutText: { fontSize: 13, fontFamily: "Inter_700Bold" },
 });

@@ -18,15 +18,29 @@ export async function removeKey(key: string): Promise<void> {
   await AsyncStorage.removeItem(key);
 }
 
-export const STORAGE_KEYS = {
-  user: "biteiq.user.v1",
-  meals: "biteiq.meals.v1",
-  weights: "biteiq.weights.v1",
-  streak: "biteiq.streak.v1",
-  coachMessages: "biteiq.coach.messages.v1",
-  mealPlan: "biteiq.coach.mealplan.v1",
-  workoutPlan: "biteiq.coach.workoutplan.v1",
-};
+export interface StorageKeys {
+  user: string;
+  meals: string;
+  weights: string;
+  streak: string;
+  coachMessages: string;
+  mealPlan: string;
+  workoutPlan: string;
+}
+
+export function buildStorageKeys(userId: string | null | undefined): StorageKeys {
+  const scope = userId ? `u.${userId}` : "anon";
+  const prefix = `biteiq.${scope}`;
+  return {
+    user: `${prefix}.user.v1`,
+    meals: `${prefix}.meals.v1`,
+    weights: `${prefix}.weights.v1`,
+    streak: `${prefix}.streak.v1`,
+    coachMessages: `${prefix}.coach.messages.v1`,
+    mealPlan: `${prefix}.coach.mealplan.v1`,
+    workoutPlan: `${prefix}.coach.workoutplan.v1`,
+  };
+}
 
 export function makeId(): string {
   return Date.now().toString() + Math.random().toString(36).substring(2, 9);
