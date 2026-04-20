@@ -1,4 +1,9 @@
-import type { FoodItem } from "@/types";
+import type {
+  CoachMessage,
+  FoodItem,
+  MealPlan,
+  WorkoutPlan,
+} from "@/types";
 import { makeId } from "./storage";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
@@ -78,4 +83,52 @@ export async function getCoachingTip(payload: {
 }): Promise<string> {
   const data = await postJson<{ tip: string }>("/ai/coaching-tip", payload);
   return data.tip;
+}
+
+export async function coachChat(payload: {
+  profile: string;
+  history: CoachMessage[];
+  message: string;
+}): Promise<string> {
+  const data = await postJson<{ reply: string }>("/ai/coach-chat", {
+    profile: payload.profile,
+    history: payload.history.map((m) => ({ role: m.role, content: m.content })),
+    message: payload.message,
+  });
+  return data.reply;
+}
+
+export async function generateMealPlan(payload: {
+  profile: string;
+  preferences?: string;
+}): Promise<Omit<MealPlan, "createdAt">> {
+  const data = await postJson<Omit<MealPlan, "createdAt">>(
+    "/ai/meal-plan",
+    payload,
+  );
+  return {
+    summary: data.summary ?? "",
+    meals: (data.meals ?? []).map((m) => ({
+      ...m,
+      calories: Math.max(0, Math.round(m.calories)),
+      protein: Math.max(0, Math.round(m.protein)),
+      carbs: Math.max(0, Math.round(m.carbs)),
+      fat: Math.max(0, Math.round(m.fat)),
+    })),
+  };
+}
+
+export async function generateWorkoutPlan(payload: {
+  profile: string;
+  daysPerWeek: number;
+  focus?: string;
+}): Promise<Omit<WorkoutPlan, "createdAt">> {
+  const data = await postJson<Omit<WorkoutPlan, "createdAt">>(
+    "/ai/workout-plan",
+    payload,
+  );
+  return {
+    summary: data.summary ?? "",
+    days: data.days ?? [],
+  };
 }

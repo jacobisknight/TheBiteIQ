@@ -23,6 +23,9 @@ export const STORAGE_KEYS = {
   meals: "biteiq.meals.v1",
   weights: "biteiq.weights.v1",
   streak: "biteiq.streak.v1",
+  coachMessages: "biteiq.coach.messages.v1",
+  mealPlan: "biteiq.coach.mealplan.v1",
+  workoutPlan: "biteiq.coach.workoutplan.v1",
 };
 
 export function makeId(): string {

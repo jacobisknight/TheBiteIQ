@@ -63,6 +63,7 @@ function RootLayoutNav() {
         name="logging/search"
         options={{ presentation: "modal", headerShown: false }}
       />
+      <Stack.Screen name="coach" options={{ headerShown: false }} />
     </Stack>
   );
 }

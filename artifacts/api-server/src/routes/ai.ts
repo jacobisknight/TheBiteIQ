@@ -201,4 +201,221 @@ router.post("/ai/coaching-tip", async (req: Request, res: Response) => {
   }
 });
 
+interface CoachMessageIn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+function safeMessages(value: unknown): CoachMessageIn[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((m) => {
+      if (typeof m !== "object" || m === null) return null;
+      const o = m as Record<string, unknown>;
+      const role = o["role"];
+      const content = o["content"];
+      if (role !== "user" && role !== "assistant") return null;
+      if (typeof content !== "string") return null;
+      return { role, content: content.slice(0, 2000) } as CoachMessageIn;
+    })
+    .filter((x): x is CoachMessageIn => x !== null)
+    .slice(-12);
+}
+
+const COACH_SYSTEM =
+  "You are the BiteIQ Health Coach — a warm, evidence-based coach blending nutrition, " +
+  "strength training, cardio, sleep, and habit guidance. Keep replies concise and scannable: " +
+  "short paragraphs, 2–4 bullets max when listing. Reference the user's profile when relevant " +
+  "(calorie/macro targets, goal, GLP-1 status). Avoid medical diagnosis; flag when a clinician " +
+  "is appropriate. No emojis, no preamble. Be practical and specific.";
+
+router.post("/ai/coach-chat", async (req: Request, res: Response) => {
+  try {
+    const body = req.body as {
+      profile?: string;
+      history?: unknown;
+      message?: string;
+    };
+    if (!body?.message || typeof body.message !== "string") {
+      res.status(400).json({ error: "message required" });
+      return;
+    }
+    const history = safeMessages(body.history);
+    const completion = await getClient().chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 600,
+      messages: [
+        { role: "system", content: COACH_SYSTEM },
+        {
+          role: "system",
+          content: `User profile:\n${body.profile ?? "Unknown"}`,
+        },
+        ...history.map((h) => ({ role: h.role, content: h.content })),
+        { role: "user", content: body.message.slice(0, 2000) },
+      ],
+    });
+    const reply =
+      completion.choices[0]?.message?.content?.trim() ??
+      "Let's try that again — can you rephrase?";
+    res.json({ reply });
+  } catch (err) {
+    req.log?.error({ err }, "coach-chat failed");
+    res.status(500).json({ error: "chat failed" });
+  }
+});
+
+router.post("/ai/meal-plan", async (req: Request, res: Response) => {
+  try {
+    const body = req.body as { profile?: string; preferences?: string };
+    if (!body?.profile) {
+      res.status(400).json({ error: "profile required" });
+      return;
+    }
+    const completion = await getClient().chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 1500,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You generate realistic one-day meal plans. Reply with JSON: " +
+            '{"summary": string, "meals": [ { "mealType": "breakfast"|"lunch"|"dinner"|"snack", ' +
+            '"name": string, "description": string, "calories": number, "protein": number, ' +
+            '"carbs": number, "fat": number } ] }. ' +
+            "Hit the user's calorie target within ±8% and macro targets within ±15%. " +
+            "Use simple whole-food recipes. Include 3 meals + 1 snack. No emojis.",
+        },
+        {
+          role: "user",
+          content: `Profile:\n${body.profile}\n\nPreferences: ${body.preferences ?? "none"}`,
+        },
+      ],
+    });
+    const content = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content) as {
+      summary?: string;
+      meals?: unknown;
+    };
+    res.json({
+      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      meals: safeMealPlanMeals(parsed.meals),
+    });
+  } catch (err) {
+    req.log?.error({ err }, "meal-plan failed");
+    res.status(500).json({ error: "meal plan failed" });
+  }
+});
+
+function safeMealPlanMeals(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set(["breakfast", "lunch", "dinner", "snack"]);
+  return value
+    .map((m) => {
+      if (typeof m !== "object" || m === null) return null;
+      const o = m as Record<string, unknown>;
+      const mealType = o["mealType"];
+      const name = o["name"];
+      if (typeof name !== "string" || typeof mealType !== "string") return null;
+      if (!allowed.has(mealType)) return null;
+      const num = (k: string) => {
+        const v = o[k];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (typeof v === "string") {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n;
+        }
+        return 0;
+      };
+      return {
+        mealType,
+        name,
+        description:
+          typeof o["description"] === "string" ? (o["description"] as string) : "",
+        calories: num("calories"),
+        protein: num("protein"),
+        carbs: num("carbs"),
+        fat: num("fat"),
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+}
+
+router.post("/ai/workout-plan", async (req: Request, res: Response) => {
+  try {
+    const body = req.body as {
+      profile?: string;
+      daysPerWeek?: number;
+      focus?: string;
+    };
+    if (!body?.profile) {
+      res.status(400).json({ error: "profile required" });
+      return;
+    }
+    const days = Math.min(7, Math.max(2, Number(body.daysPerWeek) || 4));
+    const completion = await getClient().chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 1600,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You design weekly workout plans. Reply with JSON: " +
+            '{"summary": string, "days": [ { "day": string, "focus": string, ' +
+            '"durationMin": number, "exercises": [ { "name": string, "sets": string, "notes": string } ] } ] }. ' +
+            "Balance strength, conditioning, and recovery. Include warm-up/cool-down notes. No emojis.",
+        },
+        {
+          role: "user",
+          content: `Profile:\n${body.profile}\n\nDays/week: ${days}\nFocus: ${body.focus ?? "balanced"}`,
+        },
+      ],
+    });
+    const content = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content) as { summary?: string; days?: unknown };
+    res.json({
+      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      days: safeWorkoutDays(parsed.days),
+    });
+  } catch (err) {
+    req.log?.error({ err }, "workout-plan failed");
+    res.status(500).json({ error: "workout plan failed" });
+  }
+});
+
+function safeWorkoutDays(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((d) => {
+      if (typeof d !== "object" || d === null) return null;
+      const o = d as Record<string, unknown>;
+      const day = o["day"];
+      const focus = o["focus"];
+      if (typeof day !== "string" || typeof focus !== "string") return null;
+      const exercises = Array.isArray(o["exercises"])
+        ? (o["exercises"] as unknown[])
+            .map((e) => {
+              if (typeof e !== "object" || e === null) return null;
+              const eo = e as Record<string, unknown>;
+              const name = eo["name"];
+              if (typeof name !== "string") return null;
+              return {
+                name,
+                sets: typeof eo["sets"] === "string" ? (eo["sets"] as string) : "",
+                notes:
+                  typeof eo["notes"] === "string" ? (eo["notes"] as string) : "",
+              };
+            })
+            .filter((x): x is NonNullable<typeof x> => x !== null)
+        : [];
+      const durationMin =
+        typeof o["durationMin"] === "number"
+          ? (o["durationMin"] as number)
+          : Number(o["durationMin"]) || 0;
+      return { day, focus, durationMin, exercises };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+}
+
 export default router;

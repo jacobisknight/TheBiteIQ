@@ -102,6 +102,31 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <Pressable
+        onPress={() => router.push("/coach")}
+        style={({ pressed }) => [
+          styles.coachCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.primary,
+            opacity: pressed ? 0.9 : 1,
+          },
+        ]}
+      >
+        <View style={[styles.coachIcon, { backgroundColor: colors.primarySoft }]}>
+          <Feather name="zap" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.coachTitle, { color: colors.foreground }]}>
+            AI Health Coach
+          </Text>
+          <Text style={[styles.coachHint, { color: colors.mutedForeground }]}>
+            Meal plans, workouts, and habit tips
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      </Pressable>
+
       <View style={styles.quickRow}>
         <QuickAction
           icon="camera"
@@ -240,6 +265,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  coachCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  coachIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  coachTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  coachHint: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
   quick: {
     flex: 1,
     borderRadius: 18,

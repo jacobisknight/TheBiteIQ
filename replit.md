@@ -20,7 +20,8 @@ Native Expo/React Native nutrition tracking app with a dark teal-charcoal theme 
   - Search foods → AI returns variants with macros
 - Diary: per-day view grouped by meal type, prev/next day navigation
 - Progress: streak counter, 7-day calorie trend, weight chart + logging
-- Profile: editable details, live target preview, GLP-1 toggle, reset data
+- Profile: editable details, live target preview, GLP-1 toggle, reset data, cm/in + kg/lbs unit toggles
+- AI Health Coach (`/coach`): chat with context-aware assistant, personalized meal plans, and weekly workout plans (tabs on one screen, prominent card on Home)
 
 ## Tech stack
 

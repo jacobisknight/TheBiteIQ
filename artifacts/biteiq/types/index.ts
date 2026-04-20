@@ -52,6 +52,48 @@ export interface WeightEntry {
   loggedAt: number;
 }
 
+export interface CoachMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: number;
+}
+
+export interface MealPlanMeal {
+  mealType: MealType;
+  name: string;
+  description: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface MealPlan {
+  summary: string;
+  meals: MealPlanMeal[];
+  createdAt: number;
+}
+
+export interface WorkoutExercise {
+  name: string;
+  sets: string;
+  notes: string;
+}
+
+export interface WorkoutDay {
+  day: string;
+  focus: string;
+  durationMin: number;
+  exercises: WorkoutExercise[];
+}
+
+export interface WorkoutPlan {
+  summary: string;
+  days: WorkoutDay[];
+  createdAt: number;
+}
+
 export interface DailyTotals {
   calories: number;
   protein: number;
