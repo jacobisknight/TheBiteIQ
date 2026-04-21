@@ -14,15 +14,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { HeightField } from "@/components/HeightField";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { buildPlan } from "@/lib/nutrition";
 import {
-  displayHeight,
   displayWeight,
-  parseHeight,
   parseWeight,
   type LengthUnit,
   type WeightUnit,
@@ -78,7 +77,7 @@ export default function ProfileScreen() {
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
-  const [heightInput, setHeightInput] = useState("");
+  const [heightCm, setHeightCm] = useState(0);
   const [weightInput, setWeightInput] = useState("");
   const [heightUnit, setHeightUnit] = useState<LengthUnit>("cm");
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
@@ -91,7 +90,7 @@ export default function ProfileScreen() {
     if (!user) return;
     setName(user.name);
     setAge(String(user.age));
-    setHeightInput(displayHeight(user.heightCm, heightUnit));
+    setHeightCm(user.heightCm);
     setWeightInput(displayWeight(user.weightKg, weightUnit));
     setSex(user.sex);
     setActivity(user.activity);
@@ -100,11 +99,6 @@ export default function ProfileScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const onHeightUnitChange = (u: LengthUnit) => {
-    const cm = parseHeight(heightInput, heightUnit);
-    setHeightUnit(u);
-    if (cm > 0) setHeightInput(displayHeight(cm, u));
-  };
   const onWeightUnitChange = (u: WeightUnit) => {
     const kg = parseWeight(weightInput, weightUnit);
     setWeightUnit(u);
@@ -113,13 +107,13 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const heightCm = parseHeight(heightInput, heightUnit) || user.heightCm;
+  const effectiveHeightCm = heightCm > 0 ? heightCm : user.heightCm;
   const weightKg = parseWeight(weightInput, weightUnit) || user.weightKg;
 
   const previewPlan = buildPlan({
     age: Number(age) || user.age,
     sex,
-    heightCm,
+    heightCm: effectiveHeightCm,
     weightKg,
     activity,
     goal,
@@ -128,7 +122,7 @@ export default function ProfileScreen() {
 
   const save = async () => {
     const ageN = Number(age);
-    const hN = parseHeight(heightInput, heightUnit);
+    const hN = heightCm;
     const wN = parseWeight(weightInput, weightUnit);
     if (!ageN || !hN || !wN) {
       Alert.alert("Please fill in age, height, and weight.");
@@ -201,16 +195,12 @@ export default function ProfileScreen() {
         <SectionHeader label="ABOUT YOU" />
         <Field label="Name" value={name} onChangeText={setName} />
         <Field label="Age" value={age} onChangeText={setAge} keyboardType="number-pad" />
-        <UnitField
+        <HeightField
           label="Height"
-          value={heightInput}
-          onChangeText={setHeightInput}
-          units={[
-            { key: "cm", label: "cm" },
-            { key: "in", label: "in" },
-          ]}
+          cm={heightCm}
+          onChangeCm={setHeightCm}
           unit={heightUnit}
-          onUnitChange={(u) => onHeightUnitChange(u as LengthUnit)}
+          onUnitChange={setHeightUnit}
         />
         <UnitField
           label="Weight"

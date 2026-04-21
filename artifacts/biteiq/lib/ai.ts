@@ -25,6 +25,15 @@ export interface AIRecognizedFood {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  saturatedFat?: number;
+  sodium?: number;
+}
+
+function roundOpt(n: number | undefined): number | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  return Math.max(0, Math.round(n));
 }
 
 function attachIds(items: AIRecognizedFood[]): FoodItem[] {
@@ -37,6 +46,10 @@ function attachIds(items: AIRecognizedFood[]): FoodItem[] {
     protein: Math.max(0, Math.round(it.protein)),
     carbs: Math.max(0, Math.round(it.carbs)),
     fat: Math.max(0, Math.round(it.fat)),
+    fiber: roundOpt(it.fiber),
+    sugar: roundOpt(it.sugar),
+    saturatedFat: roundOpt(it.saturatedFat),
+    sodium: roundOpt(it.sodium),
   }));
 }
 
@@ -114,6 +127,10 @@ export async function generateMealPlan(payload: {
       protein: Math.max(0, Math.round(m.protein)),
       carbs: Math.max(0, Math.round(m.carbs)),
       fat: Math.max(0, Math.round(m.fat)),
+      fiber: roundOpt(m.fiber),
+      sugar: roundOpt(m.sugar),
+      saturatedFat: roundOpt(m.saturatedFat),
+      sodium: roundOpt(m.sodium),
     })),
   };
 }

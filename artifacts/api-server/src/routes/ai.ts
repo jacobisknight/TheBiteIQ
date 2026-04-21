@@ -26,6 +26,35 @@ interface AIFood {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  saturatedFat?: number;
+  sodium?: number;
+}
+
+function readNum(o: Record<string, unknown>, k: string): number {
+  const v = o[k];
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function readOptNum(
+  o: Record<string, unknown>,
+  ...keys: string[]
+): number | undefined {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return undefined;
 }
 
 function safeFoods(value: unknown): AIFood[] {
@@ -36,15 +65,6 @@ function safeFoods(value: unknown): AIFood[] {
       const o = it as Record<string, unknown>;
       const name = typeof o["name"] === "string" ? o["name"] : null;
       if (!name) return null;
-      const num = (k: string): number => {
-        const v = o[k];
-        if (typeof v === "number" && Number.isFinite(v)) return v;
-        if (typeof v === "string") {
-          const n = Number(v);
-          if (Number.isFinite(n)) return n;
-        }
-        return 0;
-      };
       return {
         name,
         brand: typeof o["brand"] === "string" ? (o["brand"] as string) : undefined,
@@ -54,10 +74,14 @@ function safeFoods(value: unknown): AIFood[] {
             : typeof o["serving"] === "string"
               ? (o["serving"] as string)
               : undefined,
-        calories: num("calories"),
-        protein: num("protein"),
-        carbs: num("carbs"),
-        fat: num("fat"),
+        calories: readNum(o, "calories"),
+        protein: readNum(o, "protein"),
+        carbs: readNum(o, "carbs"),
+        fat: readNum(o, "fat"),
+        fiber: readOptNum(o, "fiber"),
+        sugar: readOptNum(o, "sugar"),
+        saturatedFat: readOptNum(o, "saturatedFat", "satFat", "saturated_fat"),
+        sodium: readOptNum(o, "sodium"),
       } as AIFood;
     })
     .filter((x): x is AIFood => x !== null);
@@ -76,9 +100,12 @@ async function parseFoodsFromMessages(
         content:
           "You are BiteIQ, a nutrition AI. You always reply with a single JSON object: " +
           '{"items": [ { "name": string, "brand"?: string, "servingDescription": string, ' +
-          '"calories": number, "protein": number, "carbs": number, "fat": number } ]}. ' +
-          "All macros are grams per total serving (not per 100g). Estimate conservatively " +
-          "based on common preparation. Combine sub-ingredients of a dish into one item " +
+          '"calories": number, "protein": number, "carbs": number, "fat": number, ' +
+          '"fiber": number, "sugar": number, "saturatedFat": number, "sodium": number } ]}. ' +
+          "Macros (protein, carbs, fat, fiber, sugar, saturatedFat) are grams per total serving (not per 100g). " +
+          "Sodium is milligrams per total serving. Always include fiber, sugar, saturatedFat, and sodium — estimate from " +
+          "USDA / typical packaged data when not directly knowable; use 0 only when the food genuinely contains none. " +
+          "Estimate conservatively based on common preparation. Combine sub-ingredients of a dish into one item " +
           "(e.g. 'Chicken Caesar salad'). Never include explanations.",
       },
       ...messages,
@@ -282,7 +309,10 @@ router.post("/ai/meal-plan", async (req: Request, res: Response) => {
             "You generate realistic one-day meal plans. Reply with JSON: " +
             '{"summary": string, "meals": [ { "mealType": "breakfast"|"lunch"|"dinner"|"snack", ' +
             '"name": string, "description": string, "calories": number, "protein": number, ' +
-            '"carbs": number, "fat": number } ] }. ' +
+            '"carbs": number, "fat": number, "fiber": number, "sugar": number, ' +
+            '"saturatedFat": number, "sodium": number } ] }. ' +
+            "All macros (protein/carbs/fat/fiber/sugar/saturatedFat) are grams per meal; sodium is mg per meal. " +
+            "Always include fiber, sugar, saturatedFat, and sodium. " +
             "Hit the user's calorie target within ±8% and macro targets within ±15%. " +
             "Use simple whole-food recipes. Include 3 meals + 1 snack. No emojis.",
         },
@@ -318,24 +348,19 @@ function safeMealPlanMeals(value: unknown) {
       const name = o["name"];
       if (typeof name !== "string" || typeof mealType !== "string") return null;
       if (!allowed.has(mealType)) return null;
-      const num = (k: string) => {
-        const v = o[k];
-        if (typeof v === "number" && Number.isFinite(v)) return v;
-        if (typeof v === "string") {
-          const n = Number(v);
-          if (Number.isFinite(n)) return n;
-        }
-        return 0;
-      };
       return {
         mealType,
         name,
         description:
           typeof o["description"] === "string" ? (o["description"] as string) : "",
-        calories: num("calories"),
-        protein: num("protein"),
-        carbs: num("carbs"),
-        fat: num("fat"),
+        calories: readNum(o, "calories"),
+        protein: readNum(o, "protein"),
+        carbs: readNum(o, "carbs"),
+        fat: readNum(o, "fat"),
+        fiber: readOptNum(o, "fiber"),
+        sugar: readOptNum(o, "sugar"),
+        saturatedFat: readOptNum(o, "saturatedFat", "satFat", "saturated_fat"),
+        sodium: readOptNum(o, "sodium"),
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);

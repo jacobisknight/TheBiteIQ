@@ -15,12 +15,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { HeightField } from "@/components/HeightField";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { buildPlan } from "@/lib/nutrition";
 import {
-  parseHeight,
   parseWeight,
   type LengthUnit,
   type WeightUnit,
@@ -51,7 +51,7 @@ export default function Onboarding() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<Sex>("male");
-  const [heightInput, setHeightInput] = useState("");
+  const [heightCm, setHeightCm] = useState(0);
   const [weightInput, setWeightInput] = useState("");
   const [heightUnit, setHeightUnit] = useState<LengthUnit>("cm");
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
@@ -61,7 +61,6 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
 
   const totalSteps = 5;
-  const heightCm = parseHeight(heightInput, heightUnit);
   const weightKg = parseWeight(weightInput, weightUnit);
 
   const canNext = (() => {
@@ -184,17 +183,12 @@ export default function Onboarding() {
               title="Body basics"
               subtitle="Used to calculate your BMR with the Mifflin-St Jeor formula."
             >
-              <UnitField
+              <HeightField
                 label="Height"
-                value={heightInput}
-                onChangeText={setHeightInput}
-                placeholder={heightUnit === "cm" ? "178" : "70"}
-                units={[
-                  { key: "cm", label: "cm" },
-                  { key: "in", label: "in" },
-                ]}
+                cm={heightCm}
+                onChangeCm={setHeightCm}
                 unit={heightUnit}
-                onUnitChange={(u) => setHeightUnit(u as LengthUnit)}
+                onUnitChange={setHeightUnit}
               />
               <UnitField
                 label="Weight"

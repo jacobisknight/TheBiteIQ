@@ -28,8 +28,12 @@ export function MealCard({ meal, onEdit }: Props) {
       protein: acc.protein + it.protein,
       carbs: acc.carbs + it.carbs,
       fat: acc.fat + it.fat,
+      fiber: acc.fiber + (it.fiber ?? 0),
+      sugar: acc.sugar + (it.sugar ?? 0),
+      sodium: acc.sodium + (it.sodium ?? 0),
+      hasMicros: acc.hasMicros || it.fiber != null || it.sugar != null || it.sodium != null,
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0, hasMicros: false },
   );
 
   const confirmDelete = () => {
@@ -94,6 +98,11 @@ export function MealCard({ meal, onEdit }: Props) {
         <MacroPill label="C" value={totals.carbs} color={colors.carbs} />
         <MacroPill label="F" value={totals.fat} color={colors.fat} />
       </View>
+      {totals.hasMicros ? (
+        <Text style={[styles.micros, { color: colors.mutedForeground }]}>
+          Fiber {Math.round(totals.fiber)}g  ·  Sugar {Math.round(totals.sugar)}g  ·  Sodium {Math.round(totals.sodium)}mg
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -161,5 +170,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.3,
+  },
+  micros: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.2,
   },
 });

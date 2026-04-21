@@ -99,15 +99,28 @@ export function sumMeals(meals: MealEntry[]): DailyTotals {
         acc.protein += it.protein;
         acc.carbs += it.carbs;
         acc.fat += it.fat;
+        acc.fiber += it.fiber ?? 0;
+        acc.sugar += it.sugar ?? 0;
+        acc.saturatedFat += it.saturatedFat ?? 0;
+        acc.sodium += it.sodium ?? 0;
       }
       return acc;
     },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      saturatedFat: 0,
+      sodium: 0,
+    },
   );
 }
 
 export function profileSummaryForAI(user: UserProfile, totals: DailyTotals): string {
   return `User: ${user.sex}, age ${user.age}, ${user.heightCm}cm, ${user.weightKg}kg, activity ${user.activity}, goal ${user.goal}${user.glp1Mode ? " (GLP-1)" : ""}.
 Targets: ${user.dailyCalories} kcal, ${user.proteinG}g P, ${user.carbsG}g C, ${user.fatG}g F.
-Today so far: ${Math.round(totals.calories)} kcal, ${Math.round(totals.protein)}g P, ${Math.round(totals.carbs)}g C, ${Math.round(totals.fat)}g F.`;
+Today so far: ${Math.round(totals.calories)} kcal, ${Math.round(totals.protein)}g P, ${Math.round(totals.carbs)}g C, ${Math.round(totals.fat)}g F, ${Math.round(totals.fiber)}g fiber, ${Math.round(totals.sugar)}g sugar, ${Math.round(totals.saturatedFat)}g sat fat, ${Math.round(totals.sodium)}mg sodium.`;
 }

@@ -33,6 +33,10 @@ export interface FoodItem {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  saturatedFat?: number;
+  sodium?: number;
 }
 
 export interface MealEntry {
@@ -67,6 +71,10 @@ export interface MealPlanMeal {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  saturatedFat?: number;
+  sodium?: number;
 }
 
 export interface MealPlan {
@@ -99,4 +107,8 @@ export interface DailyTotals {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
+  sugar: number;
+  saturatedFat: number;
+  sodium: number;
 }
