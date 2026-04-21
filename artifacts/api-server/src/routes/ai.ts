@@ -386,10 +386,23 @@ router.post("/ai/workout-plan", async (req: Request, res: Response) => {
         {
           role: "system",
           content:
-            "You design weekly workout plans. Reply with JSON: " +
+            "You design beginner-friendly weekly workout plans. Reply with JSON: " +
             '{"summary": string, "days": [ { "day": string, "focus": string, ' +
-            '"durationMin": number, "exercises": [ { "name": string, "sets": string, "notes": string } ] } ] }. ' +
-            "Balance strength, conditioning, and recovery. Include warm-up/cool-down notes. No emojis.",
+            '"durationMin": number, "exercises": [ { "name": string, "sets": string, ' +
+            '"notes": string, "howTo": string, "whyItHelps": string } ] } ] }. ' +
+            "STRICT WRITING RULES — these apply to every text field (summary, focus, name, sets, notes, howTo, whyItHelps): " +
+            "1) Use plain everyday English a complete beginner can follow. " +
+            "2) NEVER use abbreviations or acronyms. Always spell words out: " +
+            "write 'repetitions' not 'reps', 'each side' not 'e/s', 'rounds' not 'sets' is fine but never abbreviate, " +
+            "'minutes' not 'min', 'seconds' not 'sec', 'kilograms' not 'kg', 'pounds' not 'lbs', " +
+            "'as many repetitions as possible' not 'AMRAP', 'high intensity interval training' not 'HIIT', " +
+            "'rate of perceived exertion' not 'RPE', 'dumbbell' not 'DB', 'barbell' not 'BB', 'kettlebell' not 'KB'. " +
+            "3) For 'sets': write a friendly sentence like 'Do 3 rounds of 10 repetitions, resting about 60 seconds between rounds.' " +
+            "4) For 'howTo': give 2-4 short numbered steps describing exactly how to perform the movement. " +
+            "5) For 'whyItHelps': one short sentence in everyday language explaining the benefit. " +
+            "6) Keep exercises simple — prefer body-weight or one-piece-of-equipment moves a beginner can do at home. " +
+            "Limit each day to 4-6 exercises. Include a short gentle warm-up exercise as the first item and a cool-down stretch as the last item. " +
+            "Balance strength, gentle cardio, and recovery across the week. No emojis. No jargon.",
         },
         {
           role: "user",
@@ -400,7 +413,9 @@ router.post("/ai/workout-plan", async (req: Request, res: Response) => {
     const content = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(content) as { summary?: string; days?: unknown };
     res.json({
-      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      summary: expandAbbreviations(
+        typeof parsed.summary === "string" ? parsed.summary : "",
+      ),
       days: safeWorkoutDays(parsed.days),
     });
   } catch (err) {
@@ -408,6 +423,41 @@ router.post("/ai/workout-plan", async (req: Request, res: Response) => {
     res.status(500).json({ error: "workout plan failed" });
   }
 });
+
+// Safety net: expand common fitness abbreviations/acronyms in case the model
+// slips despite prompt instructions. Word-boundary matched, case-insensitive.
+const ABBREVIATION_EXPANSIONS: { pattern: RegExp; replacement: string }[] = [
+  { pattern: /\breps?\b/gi, replacement: "repetitions" },
+  { pattern: /\bsec(s)?\b/gi, replacement: "seconds" },
+  { pattern: /\bmins?\b/gi, replacement: "minutes" },
+  { pattern: /\bhrs?\b/gi, replacement: "hours" },
+  { pattern: /\bkgs?\b/gi, replacement: "kilograms" },
+  { pattern: /\blbs?\b/gi, replacement: "pounds" },
+  { pattern: /\bDB\b/g, replacement: "dumbbell" },
+  { pattern: /\bBB\b/g, replacement: "barbell" },
+  { pattern: /\bKB\b/g, replacement: "kettlebell" },
+  { pattern: /\bHIIT\b/gi, replacement: "high intensity interval training" },
+  { pattern: /\bAMRAP\b/gi, replacement: "as many repetitions as possible" },
+  { pattern: /\bEMOM\b/gi, replacement: "every minute on the minute" },
+  { pattern: /\bRPE\b/gi, replacement: "rate of perceived exertion" },
+  { pattern: /\bROM\b/gi, replacement: "range of motion" },
+  { pattern: /\bDOMS\b/gi, replacement: "delayed onset muscle soreness" },
+  { pattern: /\bw\/\b/gi, replacement: "with " },
+  { pattern: /\be\/s\b/gi, replacement: "each side" },
+  { pattern: /\be\/l\b/gi, replacement: "each leg" },
+  { pattern: /\bea\b/gi, replacement: "each" },
+  { pattern: /\bx(\d)/g, replacement: "$1 times" },
+];
+
+function expandAbbreviations(text: string): string {
+  if (!text) return text;
+  let out = text;
+  for (const { pattern, replacement } of ABBREVIATION_EXPANSIONS) {
+    out = out.replace(pattern, replacement);
+  }
+  // Collapse double spaces introduced by replacements
+  return out.replace(/\s{2,}/g, " ").trim();
+}
 
 function safeWorkoutDays(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -418,6 +468,7 @@ function safeWorkoutDays(value: unknown) {
       const day = o["day"];
       const focus = o["focus"];
       if (typeof day !== "string" || typeof focus !== "string") return null;
+      const cleanFocus = expandAbbreviations(focus);
       const exercises = Array.isArray(o["exercises"])
         ? (o["exercises"] as unknown[])
             .map((e) => {
@@ -426,10 +477,21 @@ function safeWorkoutDays(value: unknown) {
               const name = eo["name"];
               if (typeof name !== "string") return null;
               return {
-                name,
-                sets: typeof eo["sets"] === "string" ? (eo["sets"] as string) : "",
-                notes:
+                name: expandAbbreviations(name),
+                sets: expandAbbreviations(
+                  typeof eo["sets"] === "string" ? (eo["sets"] as string) : "",
+                ),
+                notes: expandAbbreviations(
                   typeof eo["notes"] === "string" ? (eo["notes"] as string) : "",
+                ),
+                howTo: expandAbbreviations(
+                  typeof eo["howTo"] === "string" ? (eo["howTo"] as string) : "",
+                ),
+                whyItHelps: expandAbbreviations(
+                  typeof eo["whyItHelps"] === "string"
+                    ? (eo["whyItHelps"] as string)
+                    : "",
+                ),
               };
             })
             .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -438,7 +500,7 @@ function safeWorkoutDays(value: unknown) {
         typeof o["durationMin"] === "number"
           ? (o["durationMin"] as number)
           : Number(o["durationMin"]) || 0;
-      return { day, focus, durationMin, exercises };
+      return { day, focus: cleanFocus, durationMin, exercises };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 }

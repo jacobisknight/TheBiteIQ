@@ -641,39 +641,102 @@ export default function CoachScreen() {
                     </Text>
                     {d.durationMin ? (
                       <Text style={[styles.planKcal, { color: colors.foreground }]}>
-                        {d.durationMin} min
+                        {d.durationMin} minutes
                       </Text>
                     ) : null}
                   </View>
                   <Text style={[styles.planName, { color: colors.foreground }]}>
                     {d.focus}
                   </Text>
-                  <View style={{ gap: 6, marginTop: 8 }}>
+                  <View style={{ gap: 14, marginTop: 10 }}>
                     {d.exercises.map((ex, j) => (
-                      <View key={j} style={{ gap: 2 }}>
+                      <View
+                        key={j}
+                        style={{
+                          gap: 6,
+                          paddingTop: j === 0 ? 0 : 12,
+                          borderTopWidth: j === 0 ? 0 : 1,
+                          borderTopColor: colors.border,
+                        }}
+                      >
                         <Text
                           style={{
                             color: colors.foreground,
-                            fontFamily: "Inter_600SemiBold",
-                            fontSize: 14,
+                            fontFamily: "Inter_700Bold",
+                            fontSize: 15,
                           }}
                         >
-                          {ex.name}
-                          {ex.sets ? (
-                            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium" }}>
-                              {"  "}· {ex.sets}
-                            </Text>
-                          ) : null}
+                          {j + 1}. {ex.name}
                         </Text>
+                        {ex.sets ? (
+                          <Text
+                            style={{
+                              color: colors.foreground,
+                              fontSize: 13,
+                              fontFamily: "Inter_600SemiBold",
+                            }}
+                          >
+                            {ex.sets}
+                          </Text>
+                        ) : null}
+                        {ex.howTo ? (
+                          <View style={{ gap: 2 }}>
+                            <Text
+                              style={{
+                                color: colors.mutedForeground,
+                                fontSize: 11,
+                                fontFamily: "Inter_700Bold",
+                                letterSpacing: 1,
+                              }}
+                            >
+                              HOW TO DO IT
+                            </Text>
+                            <Text
+                              style={{
+                                color: colors.foreground,
+                                fontSize: 13,
+                                fontFamily: "Inter_500Medium",
+                                lineHeight: 19,
+                              }}
+                            >
+                              {ex.howTo}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {ex.whyItHelps ? (
+                          <View style={{ gap: 2 }}>
+                            <Text
+                              style={{
+                                color: colors.mutedForeground,
+                                fontSize: 11,
+                                fontFamily: "Inter_700Bold",
+                                letterSpacing: 1,
+                              }}
+                            >
+                              WHY IT HELPS
+                            </Text>
+                            <Text
+                              style={{
+                                color: colors.foreground,
+                                fontSize: 13,
+                                fontFamily: "Inter_500Medium",
+                                lineHeight: 19,
+                              }}
+                            >
+                              {ex.whyItHelps}
+                            </Text>
+                          </View>
+                        ) : null}
                         {ex.notes ? (
                           <Text
                             style={{
                               color: colors.mutedForeground,
                               fontSize: 12,
                               fontFamily: "Inter_500Medium",
+                              fontStyle: "italic",
                             }}
                           >
-                            {ex.notes}
+                            Tip: {ex.notes}
                           </Text>
                         ) : null}
                       </View>

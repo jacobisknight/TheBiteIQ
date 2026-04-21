@@ -87,6 +87,8 @@ export interface WorkoutExercise {
   name: string;
   sets: string;
   notes: string;
+  howTo?: string;
+  whyItHelps?: string;
 }
 
 export interface WorkoutDay {
