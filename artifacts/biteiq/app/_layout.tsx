@@ -82,6 +82,7 @@ function RootLayoutNav() {
         options={{ presentation: "modal", headerShown: false }}
       />
       <Stack.Screen name="coach" options={{ headerShown: false }} />
+      <Stack.Screen name="devices" options={{ headerShown: false }} />
     </Stack>
   );
 }

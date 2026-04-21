@@ -24,7 +24,7 @@ import { kgToLbs, parseWeight, type WeightUnit } from "@/lib/units";
 export default function ProgressScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { weights, addWeight, meals, user, streak } = useApp();
+  const { weights, addWeight, meals, user, streak, healthSnapshot } = useApp();
   const { width } = useWindowDimensions();
   const [input, setInput] = useState("");
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
@@ -116,6 +116,58 @@ export default function ProgressScreen() {
           color={colors.glp1}
         />
       </View>
+
+      {healthSnapshot &&
+      (healthSnapshot.recovery != null ||
+        healthSnapshot.readiness != null ||
+        healthSnapshot.sleepMinutes != null ||
+        healthSnapshot.hrv != null) ? (
+        <View
+          style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                Recovery
+              </Text>
+              <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
+                Pulled from your linked wearables.
+              </Text>
+            </View>
+            <Feather name="heart" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.recoveryRow}>
+            {healthSnapshot.recovery != null ? (
+              <RecoveryCell
+                label="WHOOP"
+                value={`${Math.round(healthSnapshot.recovery)}%`}
+                color={colors.primary}
+              />
+            ) : null}
+            {healthSnapshot.readiness != null ? (
+              <RecoveryCell
+                label="OURA"
+                value={`${Math.round(healthSnapshot.readiness)}`}
+                color={colors.glp1}
+              />
+            ) : null}
+            {healthSnapshot.sleepMinutes != null ? (
+              <RecoveryCell
+                label="SLEEP"
+                value={`${Math.floor(healthSnapshot.sleepMinutes / 60)}h ${healthSnapshot.sleepMinutes % 60}m`}
+                color={colors.accent}
+              />
+            ) : null}
+            {healthSnapshot.hrv != null ? (
+              <RecoveryCell
+                label="HRV"
+                value={`${Math.round(healthSnapshot.hrv)} ms`}
+                color={colors.foreground}
+              />
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
       <View
         style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -243,6 +295,31 @@ export default function ProgressScreen() {
   );
 }
 
+function RecoveryCell({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  const colors = useColors();
+  return (
+    <View
+      style={[
+        styles.recoveryCell,
+        { backgroundColor: colors.background, borderColor: colors.border },
+      ]}
+    >
+      <Text style={[styles.recoveryLabel, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
+      <Text style={[styles.recoveryValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -349,4 +426,24 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   barFill: { width: "100%", borderRadius: 999 },
+  recoveryRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  recoveryCell: {
+    flexGrow: 1,
+    minWidth: "45%",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  recoveryLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+  },
+  recoveryValue: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    marginTop: 2,
+  },
 });

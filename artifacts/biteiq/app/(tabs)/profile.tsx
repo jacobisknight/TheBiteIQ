@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth, useUser } from "@clerk/expo";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -54,11 +55,24 @@ export default function ProfileScreen() {
   const { user, updateUser, resetAll } = useApp();
   const { signOut } = useAuth();
   const { user: clerkUser } = useUser();
+  const router = useRouter();
+  const { healthConnections, cleanupHealthOnSignOut } = useApp();
+  const connectedCount =
+    (healthConnections?.healthkit.connected ? 1 : 0) +
+    (healthConnections?.whoop.connected ? 1 : 0) +
+    (healthConnections?.oura.connected ? 1 : 0);
 
   const confirmSignOut = () => {
     Alert.alert("Sign out?", "You'll need to sign in again to access your data.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: () => signOut() },
+      {
+        text: "Sign out",
+        style: "destructive",
+        onPress: async () => {
+          await cleanupHealthOnSignOut();
+          await signOut();
+        },
+      },
     ]);
   };
 
@@ -253,6 +267,33 @@ export default function ProfileScreen() {
       </View>
 
       <PrimaryButton label="Save changes" onPress={save} />
+
+      <Pressable
+        onPress={() => router.push("/devices")}
+        style={({ pressed }) => [
+          styles.devicesRow,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <View style={[styles.iconWrap, { backgroundColor: colors.primarySoft }]}>
+          <Feather name="watch" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.devicesTitle, { color: colors.foreground }]}>
+            Devices & wearables
+          </Text>
+          <Text style={[styles.devicesHint, { color: colors.mutedForeground }]}>
+            {connectedCount > 0
+              ? `${connectedCount} connected · Apple Health, Whoop, Oura`
+              : "Apple Health, Whoop, Oura"}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      </Pressable>
 
       <View
         style={[
@@ -498,6 +539,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
+  devicesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  devicesTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  devicesHint: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",

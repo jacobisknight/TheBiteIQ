@@ -60,6 +60,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "expo-image-manipulator": "~14.0.8"
+    "expo-image-manipulator": "~14.0.8",
+    "react-native-health": "^1.19.0"
   }
 }

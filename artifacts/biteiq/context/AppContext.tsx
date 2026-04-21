@@ -9,6 +9,14 @@ import React, {
   useState,
 } from "react";
 
+import {
+  cleanupAll as cleanupHealthApi,
+  getConnections as fetchConnections,
+  getSnapshot as fetchHealthSnapshot,
+  ingestHealthKit,
+} from "@/lib/health/api";
+import { isHealthKitAvailable, readSnapshot as readHealthKit } from "@/lib/health/healthkit";
+import type { ConnectionsState, HealthSnapshot } from "@/lib/health/types";
 import { buildPlan, sumMeals, todayKey } from "@/lib/nutrition";
 import {
   buildStorageKeys,
@@ -72,12 +80,21 @@ interface AppState {
   setMealPlan: (plan: MealPlan | null) => Promise<void>;
   workoutPlan: WorkoutPlan | null;
   setWorkoutPlan: (plan: WorkoutPlan | null) => Promise<void>;
+
+  healthSnapshot: HealthSnapshot | null;
+  healthConnections: ConnectionsState | null;
+  refreshHealth: () => Promise<void>;
+  syncHealthKit: () => Promise<void>;
+  cleanupHealthOnSignOut: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { userId, isLoaded: authLoaded } = useAuth();
+  const { userId, isLoaded: authLoaded, getToken } = useAuth();
+  const tokenGetter = useCallback(() => getToken(), [getToken]);
+  const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
+  const [healthConnections, setHealthConnections] = useState<ConnectionsState | null>(null);
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [meals, setMeals] = useState<MealEntry[]>([]);
@@ -99,6 +116,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCoachMessages([]);
     setMealPlanState(null);
     setWorkoutPlanState(null);
+    setHealthSnapshot(null);
+    setHealthConnections(null);
     let cancelled = false;
     (async () => {
       const [u, m, w, cm, mp, wp] = await Promise.all([
@@ -277,6 +296,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCoachMessages([]);
     setMealPlanState(null);
     setWorkoutPlanState(null);
+    setHealthSnapshot(null);
+    setHealthConnections(null);
     await Promise.all([
       saveJson(keysRef.current.user, null),
       saveJson(keysRef.current.meals, []),
@@ -285,7 +306,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveJson(keysRef.current.mealPlan, null),
       saveJson(keysRef.current.workoutPlan, null),
     ]);
-  }, []);
+    if (userId) {
+      await cleanupHealthApi(tokenGetter);
+    }
+  }, [tokenGetter, userId]);
+
+  const refreshHealth = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const [conn, snap] = await Promise.all([
+        fetchConnections(tokenGetter),
+        fetchHealthSnapshot(tokenGetter),
+      ]);
+      setHealthConnections(conn);
+      setHealthSnapshot(snap);
+    } catch {
+      /* best-effort */
+    }
+  }, [tokenGetter, userId]);
+
+  const syncHealthKit = useCallback(async () => {
+    if (!userId || !isHealthKitAvailable()) return;
+    try {
+      const data = await readHealthKit();
+      if (!data) return;
+      await ingestHealthKit(tokenGetter, data);
+      await refreshHealth();
+    } catch {
+      /* best-effort */
+    }
+  }, [refreshHealth, tokenGetter, userId]);
+
+  useEffect(() => {
+    if (!ready || !userId) return;
+    void refreshHealth();
+    void syncHealthKit();
+  }, [ready, userId, refreshHealth, syncHealthKit]);
+
+  const cleanupHealthOnSignOut = useCallback(async () => {
+    if (!userId) return;
+    try {
+      await cleanupHealthApi(tokenGetter);
+    } catch {
+      /* best-effort */
+    }
+    setHealthSnapshot(null);
+    setHealthConnections(null);
+  }, [tokenGetter, userId]);
 
   const today = todayKey();
   const todayMeals = useMemo(
@@ -333,6 +400,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMealPlan,
     workoutPlan,
     setWorkoutPlan,
+    healthSnapshot,
+    healthConnections,
+    refreshHealth,
+    syncHealthKit,
+    cleanupHealthOnSignOut,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

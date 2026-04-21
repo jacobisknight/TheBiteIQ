@@ -23,20 +23,32 @@ import {
   generateMealPlan,
   generateWorkoutPlan,
 } from "@/lib/ai";
+import { snapshotSummary } from "@/lib/health/format";
+import type { HealthSnapshot } from "@/lib/health/types";
 import { makeId } from "@/lib/storage";
 import type { CoachMessage } from "@/types";
 
 type Tab = "chat" | "meals" | "workouts";
 
-function profileSummary(user: ReturnType<typeof useApp>["user"]): string {
+function profileSummary(
+  user: ReturnType<typeof useApp>["user"],
+  snapshot: HealthSnapshot | null,
+): string {
   if (!user) return "No profile on file.";
-  return [
+  const lines = [
     `Name: ${user.name}`,
     `Age: ${user.age}  Sex: ${user.sex}`,
     `Height: ${Math.round(user.heightCm)} cm  Weight: ${user.weightKg.toFixed(1)} kg`,
     `Activity: ${user.activity}  Goal: ${user.goal}${user.glp1Mode ? " (GLP-1)" : ""}`,
     `Daily target: ${user.dailyCalories} kcal, P ${user.proteinG}g / C ${user.carbsG}g / F ${user.fatG}g`,
-  ].join("\n");
+  ];
+  if (snapshot) {
+    const summary = snapshotSummary(snapshot);
+    if (summary && summary !== "No wearable data linked.") {
+      lines.push(`Wearable signal: ${summary}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 const STARTER_PROMPTS = [
@@ -59,6 +71,7 @@ export default function CoachScreen() {
     setMealPlan,
     workoutPlan,
     setWorkoutPlan,
+    healthSnapshot,
   } = useApp();
 
   const [tab, setTab] = useState<Tab>("chat");
@@ -71,7 +84,10 @@ export default function CoachScreen() {
   const [workoutFocus, setWorkoutFocus] = useState("balanced");
   const scrollRef = useRef<ScrollView>(null);
 
-  const profile = useMemo(() => profileSummary(user), [user]);
+  const profile = useMemo(
+    () => profileSummary(user, healthSnapshot),
+    [user, healthSnapshot],
+  );
 
   useEffect(() => {
     if (tab === "chat") {

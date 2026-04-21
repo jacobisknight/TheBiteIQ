@@ -18,11 +18,21 @@
       "infoPlist": {
         "NSCameraUsageDescription": "BiteIQ uses your camera to recognize food in your meals.",
         "NSPhotoLibraryUsageDescription": "BiteIQ accesses your photo library to log meals from existing photos.",
-        "NSMicrophoneUsageDescription": "BiteIQ uses your microphone for voice-based meal logging."
+        "NSMicrophoneUsageDescription": "BiteIQ uses your microphone for voice-based meal logging.",
+        "NSHealthShareUsageDescription": "BiteIQ reads steps, active energy, sleep, heart rate, and weight to personalize your nutrition coaching.",
+        "NSHealthUpdateUsageDescription": "BiteIQ does not write to Apple Health."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "android": {
-      "permissions": ["CAMERA", "RECORD_AUDIO", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -41,6 +51,14 @@
         {
           "photosPermission": "BiteIQ accesses your photos to log meals.",
           "cameraPermission": "BiteIQ uses your camera to recognize meals."
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "isClinicalDataEnabled": false,
+          "healthSharePermission": "BiteIQ reads steps, active energy, sleep, heart rate, and weight to personalize your nutrition coaching.",
+          "healthUpdatePermission": "BiteIQ does not write to Apple Health."
         }
       ]
     ],

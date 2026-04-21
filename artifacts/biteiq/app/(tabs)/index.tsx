@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, todayTotals, todayMeals, streak } = useApp();
+  const { user, todayTotals, todayMeals, streak, healthSnapshot } = useApp();
 
   if (!user) return null;
 
@@ -102,6 +102,48 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {healthSnapshot &&
+      (healthSnapshot.steps != null ||
+        healthSnapshot.activeCalories != null ||
+        healthSnapshot.recovery != null ||
+        healthSnapshot.readiness != null) ? (
+        <View style={styles.metricsRow}>
+          {healthSnapshot.steps != null ? (
+            <MetricChip
+              icon="navigation"
+              label="STEPS"
+              value={`${Math.round(healthSnapshot.steps).toLocaleString()}`}
+              color={colors.primary}
+            />
+          ) : null}
+          {healthSnapshot.activeCalories != null ? (
+            <MetricChip
+              icon="zap"
+              label="ACTIVE"
+              value={`${Math.round(healthSnapshot.activeCalories)}`}
+              suffix="kcal"
+              color={colors.accent}
+            />
+          ) : null}
+          {healthSnapshot.recovery != null ? (
+            <MetricChip
+              icon="heart"
+              label="RECOVERY"
+              value={`${Math.round(healthSnapshot.recovery)}`}
+              suffix="%"
+              color={colors.glp1}
+            />
+          ) : healthSnapshot.readiness != null ? (
+            <MetricChip
+              icon="heart"
+              label="READINESS"
+              value={`${Math.round(healthSnapshot.readiness)}`}
+              color={colors.glp1}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
       <Pressable
         onPress={() => router.push("/coach")}
         style={({ pressed }) => [
@@ -179,6 +221,44 @@ export default function HomeScreen() {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+function MetricChip({
+  icon,
+  label,
+  value,
+  suffix,
+  color,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  label: string;
+  value: string;
+  suffix?: string;
+  color: string;
+}) {
+  const colors = useColors();
+  return (
+    <View
+      style={[
+        styles.metric,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
+      <Feather name={icon} size={14} color={color} />
+      <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
+      <Text style={[styles.metricValue, { color: colors.foreground }]}>
+        {value}
+        {suffix ? (
+          <Text style={[styles.metricSuffix, { color: colors.mutedForeground }]}>
+            {" "}
+            {suffix}
+          </Text>
+        ) : null}
+      </Text>
+    </View>
   );
 }
 
@@ -308,4 +388,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   emptyText: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
+  metricsRow: { flexDirection: "row", gap: 8 },
+  metric: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  metricLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+    marginTop: 2,
+  },
+  metricValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  metricSuffix: { fontSize: 11, fontFamily: "Inter_500Medium" },
 });
