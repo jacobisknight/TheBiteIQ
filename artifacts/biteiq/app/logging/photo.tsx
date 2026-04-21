@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -50,6 +51,23 @@ export default function PhotoLog() {
     }
   };
 
+  const toJpegBase64 = async (uri: string): Promise<string | undefined> => {
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        },
+      );
+      return manipulated.base64 ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const fromCamera = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -57,28 +75,28 @@ export default function PhotoLog() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      base64: true,
-      quality: 0.6,
+      quality: 0.8,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
     setImageUri(asset.uri);
     setItems([]);
-    await analyze(asset.base64 ?? undefined);
+    const jpegBase64 = await toJpegBase64(asset.uri);
+    await analyze(jpegBase64);
   };
 
   const fromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      base64: true,
-      quality: 0.6,
+      quality: 0.8,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
     setImageUri(asset.uri);
     setItems([]);
-    await analyze(asset.base64 ?? undefined);
+    const jpegBase64 = await toJpegBase64(asset.uri);
+    await analyze(jpegBase64);
   };
 
   const save = async () => {
