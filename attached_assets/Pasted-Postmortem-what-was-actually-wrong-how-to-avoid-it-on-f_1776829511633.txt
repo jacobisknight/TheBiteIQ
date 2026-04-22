@@ -1,0 +1,49 @@
+Postmortem — what was actually wrong & how to avoid it on future apps
+Of all the things we tried, only one of them was the real bug. The rest were necessary diagnostics to find it. Here's the honest breakdown:
+
+The actual root cause
+Replit's auto-provisioned Clerk live instance had no valid SSL certificate on its FAPI subdomain (clerk.<your-domain>.replit.app). Every Clerk request from the iOS app failed at the TLS handshake, so <ClerkLoading> never resolved → black screen forever. There was nothing wrong with the app code. The fix was to point production builds at the Clerk test instance (*.clerk.accounts.dev), which Clerk hosts with a real cert.
+
+How to avoid this on day one for any new Replit + Clerk + Expo app
+Before your first TestFlight build, curl the live FAPI domain. Decode your pk_live_... key — the part after pk_live_ is base64 that decodes to the FAPI hostname (e.g. clerk.yourapp.replit.app). Then:
+
+curl -v https://clerk.yourapp.replit.app/v1/environment
+
+If you see "no alternative certificate subject name matches target hostname", stop — the live cert isn't provisioned yet and no native build will ever load Clerk. Ship using the test instance until that's resolved.
+
+Use the test (pk_test_) Clerk instance for first TestFlight builds. Test instances are real Clerk instances backed by Clerk's own SSL infrastructure (*.clerk.accounts.dev). They work in TestFlight day one with no cert dependency on your domain.
+
+Hardcode env vars in eas.json, not just .env. EAS Build runs in the cloud and only reads .env if you tell it to. Put EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY directly in eas.json under build.<profile>.env.
+
+Set the iOS submit profile up front to dodge App Store Connect rejections. In eas.json:
+
+"submit": { "production": { "ios": {
+  "appName": "Short Name Under 30 Chars",
+  "language": "en-US",
+  "sku": "your-app-001"
+}}}
+
+Without appName, EAS auto-generates a name with a hash suffix that often exceeds Apple's 30-char limit and the submission dies after build.
+
+Diagnostic patterns worth keeping in your toolkit
+These weren't the bug, but they made it findable. Worth applying to any Expo + auth app:
+
+Wrap <ClerkLoading> in a 12-second timeout component that shows a colored "Authentication service unreachable" screen with the key prefix and FAPI domain. Without this, a stuck Clerk just looks like a black screen and you have no idea what's wrong. (We kept this in your code — ClerkLoadingWithTimeout.)
+Always put <ErrorBoundary> outside <ClerkProvider>, not inside. If Clerk itself throws on construction, an inside-Provider boundary can't catch it.
+Set a global ErrorUtils.setGlobalHandler to surface unhandled native-module errors with a visible red screen. (We kept this — FatalErrorScreen.)
+For black-screen mysteries: render a tiny absolutely-positioned diagnostic strip at the top of the screen showing boot stage and elapsed seconds. Place it outside every provider so it can't be hidden by a failing wrapper. This is the single most useful debugging tool for Expo native crashes — it tells you in seconds whether the React tree even mounted, which provider died, and how long it's been stuck. (We removed it now that we don't need it, but keep it in your back pocket — drop it back in any time a build mysteriously goes black.)
+Things we tried that turned out NOT to be the cause (so you can skip them on the next app)
+New Architecture being enabled — it had to stay enabled for Reanimated v4
+react-native-keyboard-controller at root — innocent
+GestureHandlerRootView at root — innocent
+React Compiler — innocent
+Stale token cache — innocent
+The bleeding-edge expo-router/unstable-native-tabs in the tabs layout — innocent (we never reached it)
+The lesson: when Clerk silently hangs, always suspect the FAPI domain's SSL first. It's quick to verify and rules out hours of code-side guessing.
+
+Plan for getting your live instance back later
+When you're ready to switch back from test → live:
+
+Re-probe https://clerk.yourapp.replit.app/v1/environment and confirm it returns HTTP 200.
+If it does, edit eas.json and change EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY for both preview and production back to the pk_live_… value, then rebuild.
+If it still fails, the cert provisioning needs Replit support — there's nothing in your code that can fix it. Stay on the test instance until then; it's perfectly viable for a soft launch.
