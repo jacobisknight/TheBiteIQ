@@ -17,11 +17,17 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { ClerkLoadingWithTimeout } from "@/components/ClerkLoadingWithTimeout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import {
+  FatalErrorScreen,
+  installGlobalErrorHandler,
+} from "@/components/FatalErrorScreen";
 import { AppProvider, useApp } from "@/context/AppContext";
 import colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
+installGlobalErrorHandler();
 
 const queryClient = new QueryClient();
 
@@ -135,14 +141,15 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      tokenCache={tokenCache}
-      proxyUrl={proxyUrl}
-    >
-      <ClerkLoaded>
-        <SafeAreaProvider>
-          <ErrorBoundary>
+    <ErrorBoundary>
+      <ClerkProvider
+        publishableKey={publishableKey}
+        tokenCache={tokenCache}
+        proxyUrl={proxyUrl}
+      >
+        <ClerkLoadingWithTimeout publishableKey={publishableKey} />
+        <ClerkLoaded>
+          <SafeAreaProvider>
             <QueryClientProvider client={queryClient}>
               <GestureHandlerRootView
                 style={{ flex: 1, backgroundColor: colors.light.background }}
@@ -163,9 +170,10 @@ export default function RootLayout() {
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </QueryClientProvider>
-          </ErrorBoundary>
-        </SafeAreaProvider>
-      </ClerkLoaded>
-    </ClerkProvider>
+          </SafeAreaProvider>
+        </ClerkLoaded>
+      </ClerkProvider>
+      <FatalErrorScreen />
+    </ErrorBoundary>
   );
 }
