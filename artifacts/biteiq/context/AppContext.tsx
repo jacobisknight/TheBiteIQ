@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import React, {
   createContext,
   useCallback,
@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 
+import { buildDemoBundle, isDemoEmail } from "@/lib/demoData";
 import {
   cleanupAll as cleanupHealthApi,
   getConnections as fetchConnections,
@@ -92,6 +93,11 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { userId, isLoaded: authLoaded, getToken } = useAuth();
+  const { user: clerkUser } = useUser();
+  const userEmail =
+    clerkUser?.primaryEmailAddress?.emailAddress ??
+    clerkUser?.emailAddresses?.[0]?.emailAddress ??
+    null;
   const tokenGetter = useCallback(() => getToken(), [getToken]);
   const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
   const [healthConnections, setHealthConnections] = useState<ConnectionsState | null>(null);
@@ -129,6 +135,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loadJson<WorkoutPlan | null>(nextKeys.workoutPlan, null),
       ]);
       if (cancelled) return;
+
+      // First-time seed for the App Store demo account so reviewers (and our
+      // own marketing screenshots) land on a populated dashboard instead of
+      // an empty zero-state. Only fires when the demo email signs in AND no
+      // profile exists yet, so a real user never gets surprise data and the
+      // reviewer can still interact normally on subsequent loads.
+      if (!u && userId && isDemoEmail(userEmail)) {
+        const bundle = buildDemoBundle();
+        await Promise.all([
+          saveJson(nextKeys.user, bundle.user),
+          saveJson(nextKeys.meals, bundle.meals),
+          saveJson(nextKeys.weights, bundle.weights),
+          saveJson(nextKeys.coachMessages, bundle.coachMessages),
+          saveJson(nextKeys.mealPlan, bundle.mealPlan),
+          saveJson(nextKeys.workoutPlan, bundle.workoutPlan),
+        ]);
+        if (cancelled) return;
+        setUser(bundle.user);
+        setMeals(bundle.meals);
+        setWeights(bundle.weights);
+        setCoachMessages(bundle.coachMessages);
+        setMealPlanState(bundle.mealPlan);
+        setWorkoutPlanState(bundle.workoutPlan);
+        setReady(true);
+        return;
+      }
+
       setUser(u);
       setMeals(m);
       setWeights(w);
@@ -140,7 +173,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authLoaded, userId]);
+  }, [authLoaded, userId, userEmail]);
 
   const persistMeals = useCallback(async (next: MealEntry[]) => {
     setMeals(next);
