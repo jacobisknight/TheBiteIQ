@@ -4,7 +4,8 @@ Native Expo/React Native nutrition tracking app with a dark teal-charcoal theme 
 
 ## Artifacts
 
-- **biteiq** (`artifacts/biteiq`) — Expo mobile app (preview path `/`)
+- **biteiq** (`artifacts/biteiq`) — Expo mobile app (preview path `/mobile`)
+- **biteiq-web** (`artifacts/biteiq-web`) — React/Vite marketing + legal site at `/` (Privacy, Terms, Support, Delete account) — used for App Store submission URLs; user owns `biteiq.tech`
 - **api-server** (`artifacts/api-server`) — Express API with OpenAI-powered AI endpoints
 - **mockup-sandbox** — default canvas/design artifact (unused)
 

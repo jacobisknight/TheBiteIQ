@@ -1,5 +1,5 @@
 kind = "mobile"
-previewPath = "/"
+previewPath = "/mobile"
 title = "BiteIQ"
 version = "1.0.0"
 id = "artifacts/biteiq"
@@ -12,7 +12,7 @@ version = "1.0.0"
 [[services]]
 ensurePreviewReachable = "/status"
 name = "expo"
-paths = [ "/" ]
+paths = [ "/mobile" ]
 localPort = 23437
 
 [services.development]
@@ -24,4 +24,4 @@ run = [ "pnpm", "--filter", "@workspace/biteiq", "run", "serve" ]
 
 [services.env]
 PORT = "23437"
-BASE_PATH = "/"
+BASE_PATH = "/mobile"

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "BiteIQ Web"
+version = "1.0.0"
+id = "artifacts/biteiq-web"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18374
+
+[services.development]
+run = "pnpm --filter @workspace/biteiq-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/biteiq-web", "run", "build" ]
+publicDir = "artifacts/biteiq-web/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18374"
+BASE_PATH = "/"
