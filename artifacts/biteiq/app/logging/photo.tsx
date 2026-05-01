@@ -44,8 +44,14 @@ export default function PhotoLog() {
         Alert.alert("No food found", "Try another photo with the meal in focus.");
       }
       setItems(result);
-    } catch {
-      Alert.alert("Couldn't analyze", "Please try again in a moment.");
+    } catch (err) {
+      const detail =
+        err instanceof Error ? err.message : "Unknown error";
+      console.warn("[photo] recognizeFoodFromImage failed:", detail);
+      Alert.alert(
+        "Couldn't analyze",
+        __DEV__ ? detail : "Please try again in a moment.",
+      );
     } finally {
       setAnalyzing(false);
     }

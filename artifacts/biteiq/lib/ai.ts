@@ -55,14 +55,29 @@ function attachIds(items: AIRecognizedFood[]): FoodItem[] {
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   assertBaseUrl();
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const url = `${BASE_URL}/api${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error(
+      `Network error reaching ${url}: ${e instanceof Error ? e.message : "unknown"}`,
+    );
+  }
+  const ctype = res.headers.get("content-type") || "";
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Request failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  if (!ctype.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(
+      `Expected JSON from ${url} but got ${ctype || "no content-type"} (${res.status}). First 200 chars: ${text.slice(0, 200)}`,
+    );
   }
   return (await res.json()) as T;
 }
