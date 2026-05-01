@@ -7,6 +7,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "biteiq.tech"
       }
@@ -14,12 +15,14 @@
     "preview": {
       "distribution": "internal",
       "ios": { "simulator": false },
+      "environment": "preview",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "biteiq.tech"
       }
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "biteiq.tech"
       }

@@ -46,6 +46,33 @@ If `eas init` warns that the slug is taken on your account, it will prompt for a
 
 ---
 
+## Phase 2.5 — Upload Clerk key to EAS (CRITICAL — do this once)
+
+EAS's cloud builders cannot see your Replit secrets. The app needs `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` baked in at build time, or it boots to an infinite loading spinner. From the Replit shell:
+
+```bash
+cd artifacts/biteiq
+
+# Pull the value straight from Replit env into EAS — never touches git.
+# Run this once for each environment you build for.
+npx eas env:create \
+  --environment production \
+  --name EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY \
+  --value "$CLERK_PUBLISHABLE_KEY" \
+  --visibility plaintext
+
+# (Optional) repeat for development / preview profiles
+npx eas env:create --environment development --name EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY --value "$CLERK_PUBLISHABLE_KEY" --visibility plaintext
+npx eas env:create --environment preview --name EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY --value "$CLERK_PUBLISHABLE_KEY" --visibility plaintext
+
+# Verify it stuck
+npx eas env:list --environment production
+```
+
+Clerk publishable keys (`pk_test_*` / `pk_live_*`) are **public** by design — they're meant to ship in client code — so `--visibility plaintext` is correct here.
+
+---
+
 ## Phase 3 — First iOS build
 
 ```bash
