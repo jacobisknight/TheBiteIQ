@@ -60,6 +60,76 @@ additionally confirmed via screenshots saved to:
 | https://biteiq.tech/delete-account | 200 OK over HTTPS | 200, valid TLS | PASS |
 | https://www.biteiq.tech/ | redirect or resolve | DNS lookup fails (NXDOMAIN); cert SAN list contains only `biteiq.tech` | FAIL — filed as follow-up #5 |
 
+## www.biteiq.tech runbook (Task #5 — user action required)
+
+Adding a second custom domain to a Replit deployment is a Publishing-UI
+action plus a DNS change at the domain registrar. Neither can be done from
+code (there is no `customDomains` field in `artifact.toml`, and DNS lives
+at the user's registrar), so the steps below must be performed by the
+user. After they are done, re-run the verification snippet at the bottom
+of this section.
+
+### 1. Add the domain in Replit
+
+1. Open the published deployment for the `BiteIQ Web` artifact in
+   Replit (Publishing tool → the `biteiq-web` deployment).
+2. Go to **Settings → Custom Domains**.
+3. Click **Link a domain** and enter `www.biteiq.tech`.
+4. Replit will show a DNS target value (either a CNAME hostname like
+   `xxxxx.replit.app` or an A/AAAA record). Copy that value — it is the
+   target for the DNS record in step 2.
+
+### 2. Add the DNS record at the registrar for biteiq.tech
+
+At the DNS provider that hosts `biteiq.tech`, add **one** new record:
+
+- **Type:** `CNAME`
+- **Name / Host:** `www`
+- **Value / Target:** the hostname Replit displayed in step 1 (typically
+  the same `*.replit.app` host that the apex `biteiq.tech` A record
+  already points to, or the exact value Replit shows in the
+  Custom Domains UI).
+- **TTL:** default (e.g. 300s or "Auto") is fine.
+
+Do not delete or change the existing apex `biteiq.tech` record — leave
+it as-is. This new record only adds the `www` subdomain.
+
+### 3. Wait for propagation + cert issuance
+
+- DNS propagation: typically a few minutes, occasionally up to ~1 hour.
+- TLS cert issuance: Replit auto-issues a Let's Encrypt cert covering
+  `www.biteiq.tech` once DNS resolves. This is usually within a few
+  minutes of DNS being live.
+- The Custom Domains UI in Replit will show a green/verified state once
+  both DNS and the cert are ready.
+
+### 4. Re-verify
+
+Run this from any shell once the Custom Domains UI shows verified:
+
+```bash
+# Should both print 200
+curl -sS -o /dev/null -w "apex / : %{http_code}\n" https://biteiq.tech/
+curl -sS -o /dev/null -w "www  / : %{http_code}\n" https://www.biteiq.tech/
+
+# /privacy on www must also be 200 (Task #5 acceptance criterion)
+curl -sS -o /dev/null -w "www /privacy : %{http_code}\n" \
+  https://www.biteiq.tech/privacy
+
+# Cert SAN list should now contain BOTH names
+echo | openssl s_client -servername www.biteiq.tech \
+  -connect www.biteiq.tech:443 2>/dev/null \
+  | openssl x509 -noout -ext subjectAltName
+```
+
+Acceptance (from Task #5):
+
+- `https://www.biteiq.tech/` either serves the same site as the apex
+  **or** returns a 301/308 redirect to `https://biteiq.tech/`.
+- TLS cert covers both `biteiq.tech` and `www.biteiq.tech` (or each has
+  its own valid cert).
+- `curl https://www.biteiq.tech/privacy` returns `200 OK`.
+
 ## App Store Connect updates (user action required)
 
 I cannot log into App Store Connect on the user's behalf (requires Apple ID + 2FA). The user must paste the following exact URLs into the next build's metadata in App Store Connect:
