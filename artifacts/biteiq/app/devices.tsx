@@ -88,7 +88,7 @@ export default function DevicesScreen() {
       Alert.alert(
         "Apple Health unavailable",
         Platform.OS === "ios"
-          ? "Apple Health requires a custom dev build (not supported in Expo Go)."
+          ? "Apple Health isn't available on this device. Make sure you're on iPhone with iOS 17+ and try again."
           : "Apple Health is only available on iOS devices.",
       );
       return;
@@ -97,10 +97,29 @@ export default function DevicesScreen() {
     try {
       const ok = await requestHealthKitPermissions();
       if (!ok) {
-        Alert.alert("Permission denied", "Enable BiteIQ in Settings → Health → Data Access.");
-      } else {
-        await syncHealthKit();
+        Alert.alert(
+          "Permission denied",
+          "Enable BiteIQ in Settings → Health → Data Access.",
+        );
+        return;
       }
+      try {
+        await syncHealthKit({ throwOnError: true });
+      } catch {
+        Alert.alert(
+          "Couldn't sync Apple Health",
+          "We were granted access but couldn't read your data. Please try again in a moment.",
+        );
+      }
+    } catch (err) {
+      const isTimeout =
+        err instanceof Error && err.message === "healthkit_request_timeout";
+      Alert.alert(
+        "Couldn't open Apple Health",
+        isTimeout
+          ? "Apple Health didn't respond. Please try again, or enable BiteIQ in Settings → Health → Data Access."
+          : "Please try again, or enable BiteIQ in Settings → Health → Data Access.",
+      );
     } finally {
       setBusy(null);
     }

@@ -2,154 +2,216 @@ import { Platform } from "react-native";
 
 import type { HealthKitIngest } from "./types";
 
-interface HealthKitModule {
-  initHealthKit: (
-    permissions: unknown,
-    cb: (err: string | null) => void,
-  ) => void;
-  Constants: {
-    Permissions: Record<string, string>;
-  };
-  getStepCount: (opts: object, cb: (e: string | null, r: { value: number }) => void) => void;
-  getActiveEnergyBurned: (
-    opts: object,
-    cb: (e: string | null, r: Array<{ value: number }>) => void,
-  ) => void;
-  getRestingHeartRate: (
-    opts: object,
-    cb: (e: string | null, r: { value: number }) => void,
-  ) => void;
-  getHeartRateVariabilitySamples: (
-    opts: object,
-    cb: (e: string | null, r: Array<{ value: number }>) => void,
-  ) => void;
-  getSleepSamples: (
-    opts: object,
-    cb: (
-      e: string | null,
-      r: Array<{ startDate: string; endDate: string; value: string }>,
-    ) => void,
-  ) => void;
-  getLatestWeight: (
-    opts: object,
-    cb: (e: string | null, r: { value: number }) => void,
-  ) => void;
-}
+type Healthkit = typeof import("@kingstinct/react-native-healthkit");
 
-let cachedModule: HealthKitModule | null = null;
-let initAttempted = false;
-let initOk = false;
+let cachedModule: Healthkit | null = null;
+let moduleLoadAttempted = false;
+let permissionsRequested = false;
+
+const READ_QUANTITY_TYPES = [
+  "HKQuantityTypeIdentifierStepCount",
+  "HKQuantityTypeIdentifierActiveEnergyBurned",
+  "HKQuantityTypeIdentifierRestingHeartRate",
+  "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+  "HKQuantityTypeIdentifierBodyMass",
+] as const;
+
+const READ_CATEGORY_TYPES = ["HKCategoryTypeIdentifierSleepAnalysis"] as const;
+
+const PERMISSION_TIMEOUT_MS = 10_000;
+
+// CategoryValueSleepAnalysis numeric values that count as "asleep":
+//   1 = asleep / asleepUnspecified, 3 = asleepCore, 4 = asleepDeep, 5 = asleepREM
+const ASLEEP_VALUES = new Set<number>([1, 3, 4, 5]);
+
+function loadModule(): Healthkit | null {
+  if (cachedModule) return cachedModule;
+  if (moduleLoadAttempted) return null;
+  moduleLoadAttempted = true;
+  if (Platform.OS !== "ios") return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("@kingstinct/react-native-healthkit") as Healthkit;
+    cachedModule = mod;
+    return mod;
+  } catch (err) {
+    console.warn("[healthkit] native module not available", err);
+    return null;
+  }
+}
 
 export function isHealthKitAvailable(): boolean {
   if (Platform.OS !== "ios") return false;
-  if (cachedModule) return true;
+  const mod = loadModule();
+  if (!mod) return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("react-native-health");
-    cachedModule = (mod?.default ?? mod) as HealthKitModule;
-    return Boolean(cachedModule);
-  } catch {
+    return mod.isHealthDataAvailable();
+  } catch (err) {
+    console.warn("[healthkit] isHealthDataAvailable threw", err);
     return false;
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("healthkit_request_timeout")),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 export async function requestHealthKitPermissions(): Promise<boolean> {
-  if (!isHealthKitAvailable() || !cachedModule) return false;
-  const P = cachedModule.Constants.Permissions;
-  const permissions = {
-    permissions: {
-      read: [
-        P.Steps,
-        P.ActiveEnergyBurned,
-        P.RestingHeartRate,
-        P.HeartRateVariability,
-        P.SleepAnalysis,
-        P.Weight,
-      ],
-      write: [],
-    },
-  };
-  return new Promise((resolve) => {
-    cachedModule!.initHealthKit(permissions, (err) => {
-      initAttempted = true;
-      initOk = !err;
-      resolve(!err);
-    });
-  });
+  const mod = loadModule();
+  if (!mod) return false;
+  const ok = await withTimeout(
+    mod.requestAuthorization({
+      toRead: [...READ_QUANTITY_TYPES, ...READ_CATEGORY_TYPES],
+    }),
+    PERMISSION_TIMEOUT_MS,
+  );
+  permissionsRequested = true;
+  return ok;
 }
 
-function startOfDay(date = new Date()): string {
-  const d = new Date(date);
+function startOfToday(): Date {
+  const d = new Date();
   d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return d;
 }
 
-function call<T>(fn: (cb: (e: string | null, r: T) => void) => void): Promise<T | null> {
-  return new Promise((resolve) => {
-    try {
-      fn((err, value) => {
-        if (err) resolve(null);
-        else resolve(value);
-      });
-    } catch {
-      resolve(null);
-    }
-  });
+async function safeRead<T>(fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.warn("[healthkit] sample read failed", err);
+    return null;
+  }
 }
 
 export async function readSnapshot(): Promise<HealthKitIngest | null> {
-  if (!isHealthKitAvailable() || !cachedModule) return null;
-  if (!initAttempted) await requestHealthKitPermissions();
-  if (!initOk) return null;
+  const mod = loadModule();
+  if (!mod) return null;
 
-  const today = { date: startOfDay() };
-  const yesterday = {
-    startDate: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    endDate: new Date().toISOString(),
-  };
-
-  const [steps, active, resting, hrvArr, sleepArr, weight] = await Promise.all([
-    call<{ value: number }>((cb) => cachedModule!.getStepCount(today, cb)),
-    call<Array<{ value: number }>>((cb) =>
-      cachedModule!.getActiveEnergyBurned(yesterday, cb),
-    ),
-    call<{ value: number }>((cb) => cachedModule!.getRestingHeartRate(today, cb)),
-    call<Array<{ value: number }>>((cb) =>
-      cachedModule!.getHeartRateVariabilitySamples(yesterday, cb),
-    ),
-    call<Array<{ startDate: string; endDate: string; value: string }>>((cb) =>
-      cachedModule!.getSleepSamples(yesterday, cb),
-    ),
-    call<{ value: number }>((cb) => cachedModule!.getLatestWeight({}, cb)),
-  ]);
-
-  const activeSum = Array.isArray(active)
-    ? Math.round(active.reduce((s, a) => s + (a?.value || 0), 0))
-    : undefined;
-
-  const hrvAvg = Array.isArray(hrvArr) && hrvArr.length
-    ? hrvArr.reduce((s, h) => s + (h?.value || 0), 0) / hrvArr.length
-    : undefined;
-
-  let sleepMin: number | undefined;
-  if (Array.isArray(sleepArr) && sleepArr.length) {
-    const total = sleepArr
-      .filter((s) => /asleep|inbed/i.test(s.value))
-      .reduce(
-        (sum, s) =>
-          sum +
-          (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()),
-        0,
-      );
-    sleepMin = total > 0 ? Math.round(total / 60000) : undefined;
+  if (!permissionsRequested) {
+    try {
+      await requestHealthKitPermissions();
+    } catch (err) {
+      console.warn("[healthkit] readSnapshot permission request failed", err);
+      return null;
+    }
   }
 
+  const now = new Date();
+  const todayStart = startOfToday();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const [stepsStat, activeStat, restingSamples, hrvSamples, sleepSamples, weight] =
+    await Promise.all([
+      safeRead(() =>
+        mod.queryStatisticsForQuantity(
+          "HKQuantityTypeIdentifierStepCount",
+          ["cumulativeSum"],
+          { filter: { date: { startDate: todayStart, endDate: now } } },
+        ),
+      ),
+      safeRead(() =>
+        mod.queryStatisticsForQuantity(
+          "HKQuantityTypeIdentifierActiveEnergyBurned",
+          ["cumulativeSum"],
+          { filter: { date: { startDate: todayStart, endDate: now } } },
+        ),
+      ),
+      safeRead(() =>
+        mod.queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
+          filter: { date: { startDate: yesterday, endDate: now } },
+          limit: 1,
+          ascending: false,
+        }),
+      ),
+      safeRead(() =>
+        mod.queryQuantitySamples(
+          "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+          {
+            filter: { date: { startDate: yesterday, endDate: now } },
+            limit: -1,
+          },
+        ),
+      ),
+      safeRead(() =>
+        mod.queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+          filter: { date: { startDate: yesterday, endDate: now } },
+          limit: -1,
+        }),
+      ),
+      safeRead(() =>
+        mod.getMostRecentQuantitySample("HKQuantityTypeIdentifierBodyMass"),
+      ),
+    ]);
+
+  const stepsRaw = stepsStat?.sumQuantity?.quantity;
+  const steps =
+    typeof stepsRaw === "number" && stepsRaw > 0
+      ? Math.round(stepsRaw)
+      : undefined;
+
+  const activeRaw = activeStat?.sumQuantity?.quantity;
+  const activeCalories =
+    typeof activeRaw === "number" && activeRaw > 0
+      ? Math.round(activeRaw)
+      : undefined;
+
+  const restingRaw = restingSamples?.[0]?.quantity;
+  const restingHeartRate =
+    typeof restingRaw === "number" && restingRaw > 0
+      ? Math.round(restingRaw)
+      : undefined;
+
+  const hrv =
+    hrvSamples && hrvSamples.length > 0
+      ? hrvSamples.reduce((sum, h) => sum + (h.quantity ?? 0), 0) /
+        hrvSamples.length
+      : undefined;
+
+  let sleepMinutes: number | undefined;
+  if (sleepSamples && sleepSamples.length > 0) {
+    const totalMs = sleepSamples
+      .filter((s) => ASLEEP_VALUES.has(Number(s.value)))
+      .reduce((sum, s) => {
+        const start =
+          s.startDate instanceof Date
+            ? s.startDate.getTime()
+            : new Date(s.startDate as unknown as string).getTime();
+        const end =
+          s.endDate instanceof Date
+            ? s.endDate.getTime()
+            : new Date(s.endDate as unknown as string).getTime();
+        return sum + (end - start);
+      }, 0);
+    sleepMinutes = totalMs > 0 ? Math.round(totalMs / 60_000) : undefined;
+  }
+
+  const weightKg =
+    typeof weight?.quantity === "number" && weight.quantity > 0
+      ? weight.quantity
+      : undefined;
+
   return {
-    steps: steps?.value ? Math.round(steps.value) : undefined,
-    activeCalories: activeSum,
-    restingHeartRate: resting?.value ? Math.round(resting.value) : undefined,
-    hrv: hrvAvg,
-    sleepMinutes: sleepMin,
-    weightKg: weight?.value || undefined,
+    steps,
+    activeCalories,
+    restingHeartRate,
+    hrv,
+    sleepMinutes,
+    weightKg,
   };
 }

@@ -85,7 +85,7 @@ interface AppState {
   healthSnapshot: HealthSnapshot | null;
   healthConnections: ConnectionsState | null;
   refreshHealth: () => Promise<void>;
-  syncHealthKit: () => Promise<void>;
+  syncHealthKit: (opts?: { throwOnError?: boolean }) => Promise<void>;
   cleanupHealthOnSignOut: () => Promise<void>;
 }
 
@@ -358,17 +358,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tokenGetter, userId]);
 
-  const syncHealthKit = useCallback(async () => {
-    if (!userId || !isHealthKitAvailable()) return;
-    try {
-      const data = await readHealthKit();
-      if (!data) return;
-      await ingestHealthKit(tokenGetter, data);
-      await refreshHealth();
-    } catch {
-      /* best-effort */
-    }
-  }, [refreshHealth, tokenGetter, userId]);
+  const syncHealthKit = useCallback(
+    async (opts?: { throwOnError?: boolean }) => {
+      if (!userId || !isHealthKitAvailable()) return;
+      try {
+        const data = await readHealthKit();
+        if (!data) return;
+        await ingestHealthKit(tokenGetter, data);
+        await refreshHealth();
+      } catch (err) {
+        console.warn("[healthkit] syncHealthKit failed", err);
+        if (opts?.throwOnError) throw err;
+      }
+    },
+    [refreshHealth, tokenGetter, userId],
+  );
 
   useEffect(() => {
     if (!ready || !userId) return;

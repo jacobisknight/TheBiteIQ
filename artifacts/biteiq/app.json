@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "tech.biteiq.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "BiteIQ uses your camera to recognize food in your meals.",
@@ -59,11 +59,11 @@
         }
       ],
       [
-        "react-native-health",
+        "@kingstinct/react-native-healthkit",
         {
-          "isClinicalDataEnabled": false,
-          "healthSharePermission": "BiteIQ reads steps, active energy, sleep, heart rate, and weight to personalize your nutrition coaching.",
-          "healthUpdatePermission": "BiteIQ does not write to Apple Health."
+          "NSHealthShareUsageDescription": "BiteIQ reads steps, active energy, sleep, heart rate, and weight to personalize your nutrition coaching.",
+          "NSHealthUpdateUsageDescription": "BiteIQ does not write to Apple Health.",
+          "background": false
         }
       ]
     ],

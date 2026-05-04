@@ -63,7 +63,8 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@kingstinct/react-native-healthkit": "^14.0.0",
     "expo-image-manipulator": "~14.0.8",
-    "react-native-health": "^1.19.0"
+    "react-native-nitro-modules": "^0.35.6"
   }
 }
