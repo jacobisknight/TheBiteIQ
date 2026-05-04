@@ -130,6 +130,86 @@ Acceptance (from Task #5):
   its own valid cert).
 - `curl https://www.biteiq.tech/privacy` returns `200 OK`.
 
+## Re-verification (Task #5 follow-up)
+
+Run on: 2026-05-01T16:18:15Z
+
+### Captured output
+
+```
+=== HTTP status checks ===
+apex / : 200
+curl: (6) Could not resolve host: www.biteiq.tech
+www  / : 000
+curl: (6) Could not resolve host: www.biteiq.tech
+www /privacy : 000
+
+=== Cert SAN (www.biteiq.tech) ===
+Could not read certificate from <stdin>
+Unable to load certificate
+
+=== Cert SAN (biteiq.tech) ===
+X509v3 Subject Alternative Name:
+    DNS:biteiq.tech
+```
+
+### DNS lookup against public resolvers
+
+`dig`/`nslookup` are not available in this environment, so DNS was queried
+via DNS-over-HTTPS (Google `dns.google` and Cloudflare `1.1.1.1`):
+
+```
+=== Google DoH: www.biteiq.tech (A)     -> Status 3 (NXDOMAIN)
+=== Google DoH: www.biteiq.tech (CNAME) -> Status 3 (NXDOMAIN)
+=== Google DoH: biteiq.tech    (A)      -> 34.111.179.208 (OK)
+=== Cloudflare DoH: www.biteiq.tech (A) -> Status 3 (NXDOMAIN)
+```
+
+Authoritative SOA returned in the NXDOMAIN responses points to
+`ns1.dreamhost.com.` — i.e. DreamHost is the DNS provider for
+`biteiq.tech`, and no `www` record exists there yet.
+
+### Results vs Task #5 acceptance
+
+| URL / check | Required | Observed | Status |
+|---|---|---|---|
+| https://www.biteiq.tech/ | 200 OK or 301/308 redirect to apex | DNS NXDOMAIN, connection cannot be established | FAIL |
+| https://www.biteiq.tech/privacy | 200 OK | DNS NXDOMAIN, connection cannot be established | FAIL |
+| TLS cert SAN for `www.biteiq.tech` | covers both `biteiq.tech` and `www.biteiq.tech` (or each has its own valid cert) | Apex cert SAN still lists only `DNS:biteiq.tech`; no cert reachable for `www` because DNS does not resolve | FAIL |
+| https://biteiq.tech/ (control) | 200 OK | 200 OK, valid TLS | PASS |
+
+### Diagnosis — what's still missing
+
+The `www` subdomain has not been added at the DNS provider yet, so neither
+Replit's edge nor Let's Encrypt can serve `www.biteiq.tech`. Specifically:
+
+1. **DNS record not added at the registrar.** Public resolvers
+   (Google + Cloudflare) both return NXDOMAIN for `www.biteiq.tech`,
+   while the apex `biteiq.tech` correctly resolves to `34.111.179.208`.
+   The authoritative nameserver is `ns1.dreamhost.com`, so the missing
+   `www` CNAME (or A) record needs to be added in DreamHost's DNS
+   panel for the `biteiq.tech` zone, per step 2 of the runbook above.
+2. **Replit Custom Domains link likely not added either.** Without DNS
+   resolving, Replit cannot validate domain ownership, and no Let's
+   Encrypt cert covering `www.biteiq.tech` will be issued. Step 1 of
+   the runbook (Publishing tool → Settings → Custom Domains → Link a
+   domain → `www.biteiq.tech`) must also be completed so Replit knows
+   to route this hostname to the `biteiq-web` deployment and request
+   a cert for it.
+
+### What the user needs to do next
+
+Re-run steps 1 and 2 of the "www.biteiq.tech runbook" section above:
+
+- In Replit Publishing → BiteIQ Web deployment → Settings → Custom
+  Domains, add `www.biteiq.tech` and copy the DNS target Replit shows.
+- In DreamHost's DNS panel for `biteiq.tech`, add a `CNAME` record with
+  Name `www` pointing at that target (TTL default / Auto is fine).
+- Wait a few minutes for DNS propagation and Replit's automatic cert
+  issuance, then ask the agent to re-run the verification snippet
+  again. Once `www.biteiq.tech` resolves, the cert SAN should include
+  both names automatically.
+
 ## App Store Connect updates (user action required)
 
 I cannot log into App Store Connect on the user's behalf (requires Apple ID + 2FA). The user must paste the following exact URLs into the next build's metadata in App Store Connect:
