@@ -133,15 +133,19 @@ Apple requires **6.9" iPhone screenshots** (1290 × 2796 px) which is exactly wh
 
 ---
 
-## Replying to App Store reviewer (Guideline 4.8 — Sign in with Apple)
+## Replying to App Store reviewer (Build 4 — Guidelines 4.8 and 5.1.1(v))
 
-If you get rejected for **Guideline 4.8 (Login Services)** because you have Google Sign-In but not Sign in with Apple, build number `3` adds it. After your next `eas submit`, reply to the rejection in App Store Connect → Resolution Center with:
+Build number `4` addresses both rejection points: **Sign in with Apple** (Guideline 4.8) and **in-app account deletion** (Guideline 5.1.1(v)). After your next `eas submit`, reply to the rejection in App Store Connect → Resolution Center with:
 
 > Hi App Review Team,
 >
-> Thanks for the feedback. Build 3 adds **Sign in with Apple** alongside Google Sign-In. Both options appear above the email/password form on the Sign In and Sign Up screens. Apple Sign In uses the native `AppleAuthenticationButton` (white, "Sign in with Apple" / "Sign up with Apple") and the system Sign in with Apple sheet. The implementation uses `expo-apple-authentication` (the official Apple Sign In SDK) wired to Clerk via `oauth_token_apple`. This satisfies the equivalent-options requirement of Guideline 4.8.
+> Thanks for the feedback. Build 4 addresses both items:
 >
-> Please re-review build 3.
+> **Guideline 4.8 (Login Services).** We added **Sign in with Apple** alongside Google Sign-In. Both options appear above the email/password form on the Sign In and Sign Up screens. Apple Sign In uses the native `AppleAuthenticationButton` (white, "Sign in with Apple" / "Sign up with Apple") and the system Sign in with Apple sheet, implemented with the `expo-apple-authentication` SDK. This satisfies the equivalent-options requirement of 4.8.
+>
+> **Guideline 5.1.1(v) (Account Deletion).** Users can now permanently delete their account from inside the app: open BiteIQ → Profile tab → scroll to the bottom → tap **Delete account** → confirm the two prompts. This deletes the user's account and all associated personal data (profile, meals, weights, coach history, and tokens/data synced from Apple Health, Whoop, and Oura) immediately — no email request required.
+>
+> Please re-review build 4.
 >
 > Thanks,
 > [Your name]
