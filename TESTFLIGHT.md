@@ -133,6 +133,23 @@ Apple requires **6.9" iPhone screenshots** (1290 × 2796 px) which is exactly wh
 
 ---
 
+## Replying to App Store reviewer (Guideline 4.8 — Sign in with Apple)
+
+If you get rejected for **Guideline 4.8 (Login Services)** because you have Google Sign-In but not Sign in with Apple, build number `3` adds it. After your next `eas submit`, reply to the rejection in App Store Connect → Resolution Center with:
+
+> Hi App Review Team,
+>
+> Thanks for the feedback. Build 3 adds **Sign in with Apple** alongside Google Sign-In. Both options appear above the email/password form on the Sign In and Sign Up screens. Apple Sign In uses the native `AppleAuthenticationButton` (white, "Sign in with Apple" / "Sign up with Apple") and the system Sign in with Apple sheet. The implementation uses `expo-apple-authentication` (the official Apple Sign In SDK) wired to Clerk via `oauth_token_apple`. This satisfies the equivalent-options requirement of Guideline 4.8.
+>
+> Please re-review build 3.
+>
+> Thanks,
+> [Your name]
+
+The bundle ID `tech.biteiq.app` must have **Sign In with Apple** enabled in Apple Developer → Identifiers → Capabilities. EAS will prompt to enable it on the next build; accept. If it doesn't, toggle it on manually before re-running `eas build`.
+
+---
+
 ## Things that will probably trip you up
 
 - **Build fails with "No team selected"** — run `npx eas credentials` and pick your Apple team explicitly.

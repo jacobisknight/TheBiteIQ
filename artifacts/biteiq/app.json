@@ -15,8 +15,9 @@
     },
     "ios": {
       "bundleIdentifier": "tech.biteiq.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "BiteIQ uses your camera to recognize food in your meals.",
         "NSPhotoLibraryUsageDescription": "BiteIQ accesses your photo library to log meals from existing photos.",
@@ -51,6 +52,7 @@
       ],
       "expo-font",
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-image-picker",
         {

@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useSignUp, useSSO } from "@clerk/expo";
+import { useSignInWithApple } from "@clerk/expo/apple";
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import { Link } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -36,6 +38,7 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const { signUp, errors, fetchStatus } = useSignUp();
   const { startSSOFlow } = useSSO();
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
   useWarmUpBrowser();
 
   const [email, setEmail] = useState("");
@@ -43,6 +46,7 @@ export default function SignUpScreen() {
   const [code, setCode] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -84,6 +88,21 @@ export default function SignUpScreen() {
       setGoogleLoading(false);
     }
   }, [startSSOFlow]);
+
+  const handleApple = useCallback(async () => {
+    setSubmitError(null);
+    setAppleLoading(true);
+    try {
+      const { createdSessionId, setActive } = await startAppleAuthenticationFlow();
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+      }
+    } catch (err) {
+      setSubmitError(readableError(err));
+    } finally {
+      setAppleLoading(false);
+    }
+  }, [startAppleAuthenticationFlow]);
 
   const busy = fetchStatus === "fetching";
   const needsVerification =
@@ -180,15 +199,25 @@ export default function SignUpScreen() {
           </>
         ) : (
           <>
+            {Platform.OS === "ios" ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={14}
+                style={styles.appleBtn}
+                onPress={appleLoading || googleLoading || busy ? () => {} : handleApple}
+              />
+            ) : null}
+
             <Pressable
               onPress={handleGoogle}
-              disabled={googleLoading || busy}
+              disabled={googleLoading || busy || appleLoading}
               style={({ pressed }) => [
                 styles.oauthBtn,
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
-                  opacity: googleLoading || busy ? 0.6 : pressed ? 0.85 : 1,
+                  opacity: googleLoading || busy || appleLoading ? 0.6 : pressed ? 0.85 : 1,
                 },
               ]}
             >
@@ -322,6 +351,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_500Medium",
     textAlign: "center",
+  },
+  appleBtn: {
+    width: "100%",
+    height: 50,
+    marginBottom: 12,
   },
   oauthBtn: {
     flexDirection: "row",
