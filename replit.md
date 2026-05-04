@@ -21,7 +21,7 @@ Native Expo/React Native nutrition tracking app with a dark teal-charcoal theme 
   - Search foods → AI returns variants with macros
 - Diary: per-day view grouped by meal type, prev/next day navigation
 - Progress: streak counter, 7-day calorie trend, weight chart + logging
-- Profile: editable details, live target preview, GLP-1 toggle, reset data, cm/in + kg/lbs unit toggles
+- Profile: editable details, live target preview, GLP-1 toggle, reset data, in-app account deletion (DELETE /api/account → Clerk user deletion + health-token cleanup), cm/in + kg/lbs unit toggles
 - AI Health Coach (`/coach`): chat with context-aware assistant, personalized meal plans, and weekly workout plans (tabs on one screen, prominent card on Home)
 
 ## Tech stack
@@ -38,3 +38,7 @@ Native Expo/React Native nutrition tracking app with a dark teal-charcoal theme 
 - `POST /parse-text` — description → food items
 - `POST /search-food` — query → food variants
 - `POST /coaching-tip` — profile+totals → short coach message
+
+## Backend account routes (`/api/account`)
+
+- `DELETE /account` — auth-required; deletes the Clerk user, then best-effort wipes health-token storage. Returns `{ ok: true }` on success or `{ error: "deletion_failed" }` (502) if the Clerk delete fails (no data is touched in that case so the user can retry).

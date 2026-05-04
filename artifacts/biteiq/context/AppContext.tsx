@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 
+import { deleteAccountRequest } from "@/lib/account/api";
 import { buildDemoBundle, isDemoEmail } from "@/lib/demoData";
 import {
   cleanupAll as cleanupHealthApi,
@@ -87,6 +88,7 @@ interface AppState {
   refreshHealth: () => Promise<void>;
   syncHealthKit: (opts?: { throwOnError?: boolean }) => Promise<void>;
   cleanupHealthOnSignOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -391,6 +393,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHealthConnections(null);
   }, [tokenGetter, userId]);
 
+  const deleteAccount = useCallback(async () => {
+    if (!userId) throw new Error("not_signed_in");
+    // Server-side: delete the Clerk user, then cleanup health tokens.
+    // We do this BEFORE wiping local state so a failure leaves the user
+    // with all their data intact and able to retry.
+    await deleteAccountRequest(tokenGetter);
+    // Server is gone — now wipe everything from this device too so no
+    // residue remains if this device is later signed into a new account.
+    setUser(null);
+    setMeals([]);
+    setWeights([]);
+    setCoachMessages([]);
+    setMealPlanState(null);
+    setWorkoutPlanState(null);
+    setHealthSnapshot(null);
+    setHealthConnections(null);
+    await Promise.all([
+      saveJson(keysRef.current.user, null),
+      saveJson(keysRef.current.meals, []),
+      saveJson(keysRef.current.weights, []),
+      saveJson(keysRef.current.coachMessages, []),
+      saveJson(keysRef.current.mealPlan, null),
+      saveJson(keysRef.current.workoutPlan, null),
+    ]);
+  }, [tokenGetter, userId]);
+
   const today = todayKey();
   const todayMeals = useMemo(
     () => meals.filter((m) => m.date === today),
@@ -442,6 +470,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshHealth,
     syncHealthKit,
     cleanupHealthOnSignOut,
+    deleteAccount,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

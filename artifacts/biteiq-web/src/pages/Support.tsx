@@ -69,9 +69,16 @@ export default function Support() {
 
       <h3>How do I delete my account?</h3>
       <p>
-        Email <a href="mailto:privacy@biteiq.tech">privacy@biteiq.tech</a>{" "}
-        from the address on your account with the subject line{" "}
-        <em>Delete my account</em>, and we will permanently remove your
+        The fastest way is from inside the app: open BiteIQ → tap the{" "}
+        <em>Profile</em> tab → scroll to the bottom → tap{" "}
+        <em>Delete account</em> → confirm. Your account and all your data
+        are removed immediately.
+      </p>
+      <p>
+        If you can't open the app, email{" "}
+        <a href="mailto:privacy@biteiq.tech">privacy@biteiq.tech</a> from
+        the address on your account with the subject line{" "}
+        <em>Delete my account</em> and we will permanently remove your
         data within 30 days. Full instructions are on our{" "}
         <a href="/delete-account">Delete account</a> page.
       </p>

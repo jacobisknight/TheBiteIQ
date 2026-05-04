@@ -5,15 +5,35 @@ export default function DeleteAccount() {
     <PolicyPage
       title="Delete your account"
       description="How to permanently delete your BiteIQ account and all associated data."
-      effectiveDate="January 1, 2026"
+      effectiveDate="May 4, 2026"
     >
       <p>
-        You can delete your BiteIQ account and all of your data at any time
-        by emailing us. Deletion is permanent — once your data is removed
-        it cannot be recovered.
+        You can delete your BiteIQ account and all of your data at any
+        time. Deletion is permanent — once your data is removed it
+        cannot be recovered.
       </p>
 
-      <h2>How to delete your account</h2>
+      <h2>Option 1 — Delete from inside the app (recommended)</h2>
+      <ol>
+        <li>Open the BiteIQ app and sign in.</li>
+        <li>
+          Tap the <strong>Profile</strong> tab at the bottom.
+        </li>
+        <li>
+          Scroll to the bottom and tap <strong>Delete account</strong>.
+        </li>
+        <li>
+          Confirm the two prompts. Your account, profile, meals, weights,
+          coach conversations, and connected-service data are removed
+          immediately and you are signed out.
+        </li>
+      </ol>
+      <p>
+        This is the fastest path — deletion happens in seconds, no email
+        back-and-forth required.
+      </p>
+
+      <h2>Option 2 — Email us (if you can't open the app)</h2>
       <ol>
         <li>
           Send an email from the address you used to sign up to{" "}

@@ -51,11 +51,12 @@ const GOALS: { key: Goal; label: string }[] = [
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, updateUser, resetAll } = useApp();
+  const { user, updateUser, resetAll, deleteAccount } = useApp();
   const { signOut } = useAuth();
   const { user: clerkUser } = useUser();
   const router = useRouter();
   const { healthConnections, cleanupHealthOnSignOut } = useApp();
+  const [deleting, setDeleting] = useState(false);
   const connectedCount =
     (healthConnections?.healthkit.connected ? 1 : 0) +
     (healthConnections?.whoop.connected ? 1 : 0) +
@@ -148,6 +149,57 @@ export default function ProfileScreen() {
       [
         { text: "Cancel", style: "cancel" },
         { text: "Reset", style: "destructive", onPress: () => resetAll() },
+      ],
+    );
+  };
+
+  const performDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      try {
+        await signOut();
+      } catch {
+        /* session is already invalid; ignore */
+      }
+    } catch (err) {
+      setDeleting(false);
+      const message =
+        err instanceof Error ? err.message : "Please try again in a moment.";
+      Alert.alert(
+        "Couldn't delete account",
+        `Something went wrong: ${message}\n\nIf this keeps happening, email privacy@biteiq.tech and we'll delete it for you.`,
+      );
+    }
+  };
+
+  const confirmDelete = () => {
+    if (deleting) return;
+    Alert.alert(
+      "Delete your account?",
+      "This permanently deletes your BiteIQ account, your profile, meals, weights, coach history, and all data synced from Apple Health, Whoop, and Oura. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you absolutely sure?",
+              "There is no undo. Tap Delete account to remove everything now.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete account",
+                  style: "destructive",
+                  onPress: () => {
+                    void performDelete();
+                  },
+                },
+              ],
+            );
+          },
+        },
       ],
     );
   };
@@ -315,6 +367,28 @@ export default function ProfileScreen() {
           Reset all data
         </Text>
       </Pressable>
+
+      <Pressable
+        onPress={confirmDelete}
+        disabled={deleting}
+        style={[
+          styles.deleteAccountBtn,
+          {
+            borderColor: colors.destructive,
+            opacity: deleting ? 0.5 : 1,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+      >
+        <Feather name="user-x" size={16} color={colors.destructive} />
+        <Text style={[styles.deleteAccountText, { color: colors.destructive }]}>
+          {deleting ? "Deleting account…" : "Delete account"}
+        </Text>
+      </Pressable>
+      <Text style={[styles.deleteAccountHint, { color: colors.mutedForeground }]}>
+        Permanently removes your account and all your BiteIQ data.
+      </Text>
     </ScrollView>
   );
 }
@@ -580,4 +654,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   signOutText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  deleteAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  deleteAccountText: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  deleteAccountHint: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    marginTop: -8,
+  },
 });
