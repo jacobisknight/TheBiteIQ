@@ -6,8 +6,14 @@ import { clearAll as clearHealthForUser } from "../lib/health/tokenStore";
 const router: IRouter = Router();
 
 router.delete("/account", async (req: Request, res: Response) => {
-  const auth = getAuth(req);
-  const userId = auth?.userId;
+  let userId: string | null | undefined;
+  try {
+    userId = getAuth(req)?.userId;
+  } catch (err) {
+    req.log?.warn({ err }, "clerk getAuth threw on /account");
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
   if (!userId) {
     res.status(401).json({ error: "unauthorized" });
     return;
