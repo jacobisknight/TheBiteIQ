@@ -18,8 +18,15 @@ import { buildSnapshot } from "../lib/health/snapshot";
 const router: IRouter = Router();
 
 function authedUserId(req: Request, res: Response): string | null {
-  const auth = getAuth(req);
-  const uid = auth?.userId;
+  let uid: string | null | undefined;
+  try {
+    uid = getAuth(req)?.userId;
+  } catch (err) {
+    // Malformed/invalid JWTs can throw inside Clerk's decoder; treat them
+    // as unauthenticated rather than letting them surface as 500s.
+    req.log?.warn({ err, url: req.url }, "clerk getAuth threw");
+    uid = null;
+  }
   if (!uid) {
     res.status(401).json({ error: "unauthorized" });
     return null;

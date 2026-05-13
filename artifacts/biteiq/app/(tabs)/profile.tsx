@@ -157,11 +157,6 @@ export default function ProfileScreen() {
     setDeleting(true);
     try {
       await deleteAccount();
-      try {
-        await signOut();
-      } catch {
-        /* session is already invalid; ignore */
-      }
     } catch (err) {
       setDeleting(false);
       const message =
@@ -170,7 +165,16 @@ export default function ProfileScreen() {
         "Couldn't delete account",
         `Something went wrong: ${message}\n\nIf this keeps happening, email privacy@biteiq.tech and we'll delete it for you.`,
       );
+      return;
     }
+    // Server delete succeeded and local state has been wiped. Sign out and
+    // route to sign-in unconditionally so the UI can never get stuck.
+    try {
+      await signOut();
+    } catch {
+      /* session is already invalid because the user was deleted; ignore */
+    }
+    setDeleting(false);
   };
 
   const confirmDelete = () => {

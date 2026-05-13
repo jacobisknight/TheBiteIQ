@@ -100,7 +100,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clerkUser?.primaryEmailAddress?.emailAddress ??
     clerkUser?.emailAddresses?.[0]?.emailAddress ??
     null;
-  const tokenGetter = useCallback(() => getToken(), [getToken]);
+  const tokenGetter = useCallback(
+    (opts?: { skipCache?: boolean }) => getToken(opts),
+    [getToken],
+  );
   const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
   const [healthConnections, setHealthConnections] = useState<ConnectionsState | null>(null);
   const [ready, setReady] = useState(false);
