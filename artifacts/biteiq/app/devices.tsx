@@ -98,19 +98,27 @@ export default function DevicesScreen() {
       const ok = await requestHealthKitPermissions();
       if (!ok) {
         Alert.alert(
-          "Permission denied",
-          "Enable BiteIQ in Settings → Health → Data Access.",
+          "Permission needed",
+          "BiteIQ needs access to Apple Health to read your activity. Open Settings → Health → Data Access & Devices → BiteIQ and turn on the categories you'd like to share.",
         );
         return;
       }
+      let syncFailed = false;
       try {
         await syncHealthKit({ throwOnError: true });
       } catch {
-        Alert.alert(
-          "Couldn't sync Apple Health",
-          "We were granted access but couldn't read your data. Please try again in a moment.",
-        );
+        syncFailed = true;
       }
+      // Always show feedback that something happened, even when sync fails,
+      // so reviewers and users never see a "nothing happens" state after
+      // granting Apple Health permission.
+      Alert.alert(
+        "Apple Health connected",
+        syncFailed
+          ? "BiteIQ has access. We couldn't pull today's data just now — it will sync next time you open the app."
+          : "BiteIQ will use your steps, energy, sleep, and weight to personalize coaching.",
+      );
+      await refreshHealth();
     } catch (err) {
       const isTimeout =
         err instanceof Error && err.message === "healthkit_request_timeout";
