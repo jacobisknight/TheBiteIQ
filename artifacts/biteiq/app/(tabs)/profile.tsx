@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import { HeightField } from "@/components/HeightField";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { useApp } from "@/context/AppContext";
+import { usePro } from "@/hooks/usePro";
 import { useColors } from "@/hooks/useColors";
 import { buildPlan } from "@/lib/nutrition";
 import {
@@ -55,6 +57,7 @@ export default function ProfileScreen() {
   const { signOut } = useAuth();
   const { user: clerkUser } = useUser();
   const router = useRouter();
+  const { pro } = usePro();
   const { healthConnections, cleanupHealthOnSignOut } = useApp();
   const [deleting, setDeleting] = useState(false);
   const connectedCount =
@@ -313,6 +316,37 @@ export default function ProfileScreen() {
       </View>
 
       <PrimaryButton label="Save changes" onPress={save} />
+
+      <Pressable
+        onPress={() =>
+          pro
+            ? WebBrowser.openBrowserAsync("https://apps.apple.com/account/subscriptions")
+            : router.push("/paywall")
+        }
+        style={({ pressed }) => [
+          styles.devicesRow,
+          {
+            backgroundColor: colors.card,
+            borderColor: pro ? colors.border : colors.accent,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <View style={[styles.iconWrap, { backgroundColor: colors.accentSoft }]}>
+          <Feather name="star" size={20} color={colors.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.devicesTitle, { color: colors.foreground }]}>
+            {pro ? "BiteIQ Pro is active" : "Upgrade to BiteIQ Pro"}
+          </Text>
+          <Text style={[styles.devicesHint, { color: colors.mutedForeground }]}>
+            {pro
+              ? "Manage or cancel your subscription"
+              : "Unlimited AI logging, coach, meal & workout plans"}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      </Pressable>
 
       <Pressable
         onPress={() => router.push("/devices")}

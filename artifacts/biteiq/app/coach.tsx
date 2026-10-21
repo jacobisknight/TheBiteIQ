@@ -22,6 +22,7 @@ import {
   coachChat,
   generateMealPlan,
   generateWorkoutPlan,
+  UpgradeRequiredError,
 } from "@/lib/ai";
 import { snapshotSummary } from "@/lib/health/format";
 import type { HealthSnapshot } from "@/lib/health/types";
@@ -124,11 +125,14 @@ export default function CoachScreen() {
         content: reply,
         createdAt: Date.now(),
       });
-    } catch {
+    } catch (err) {
       await addCoachMessage({
         id: makeId(),
         role: "assistant",
-        content: "I couldn't reach the coach right now. Check your connection and try again.",
+        content:
+          err instanceof UpgradeRequiredError
+            ? "You've used today's free coach messages. Upgrade to BiteIQ Pro for unlimited coaching, or come back tomorrow."
+            : "I couldn't reach the coach right now. Check your connection and try again.",
         createdAt: Date.now(),
       });
     } finally {
@@ -141,7 +145,8 @@ export default function CoachScreen() {
     try {
       const plan = await generateMealPlan({ profile, preferences: mealPrefs });
       await setMealPlan({ ...plan, createdAt: Date.now() });
-    } catch {
+    } catch (err) {
+      if (err instanceof UpgradeRequiredError) return;
       Alert.alert("Couldn't build a meal plan right now.");
     } finally {
       setLoadingMeal(false);
@@ -157,7 +162,8 @@ export default function CoachScreen() {
         focus: workoutFocus,
       });
       await setWorkoutPlan({ ...plan, createdAt: Date.now() });
-    } catch {
+    } catch (err) {
+      if (err instanceof UpgradeRequiredError) return;
       Alert.alert("Couldn't build a workout plan right now.");
     } finally {
       setLoadingWorkout(false);

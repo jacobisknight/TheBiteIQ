@@ -4,7 +4,27 @@ import type {
   MealPlan,
   WorkoutPlan,
 } from "@/types";
+import { getClerkInstance } from "@clerk/expo";
+import { router } from "expo-router";
+
 import { makeId } from "./storage";
+
+/** Thrown when the free daily quota is used up (server returned 402). */
+export class UpgradeRequiredError extends Error {
+  constructor(public feature: string) {
+    super("You've used today's free AI requests. Upgrade to BiteIQ Pro for unlimited access.");
+    this.name = "UpgradeRequiredError";
+  }
+}
+
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const token = await getClerkInstance().session?.getToken();
+    return token ? { authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE_URL = DOMAIN ? `https://${DOMAIN}` : "";
@@ -53,14 +73,18 @@ function attachIds(items: AIRecognizedFood[]): FoodItem[] {
   }));
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(
+  path: string,
+  body: unknown,
+  opts: { openPaywall?: boolean } = {},
+): Promise<T> {
   assertBaseUrl();
   const url = `${BASE_URL}/api${path}`;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify(body),
     });
   } catch (e) {
@@ -69,6 +93,21 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     );
   }
   const ctype = res.headers.get("content-type") || "";
+  if (res.status === 402) {
+    let feature = path;
+    try {
+      feature = ((await res.json()) as { feature?: string }).feature ?? path;
+    } catch {
+      /* noop */
+    }
+    if (opts.openPaywall !== false) {
+      router.push({ pathname: "/paywall", params: { feature } });
+    }
+    throw new UpgradeRequiredError(feature);
+  }
+  if (res.status === 401) {
+    throw new Error("Your session expired. Please sign out and sign back in.");
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Request failed (${res.status}): ${text.slice(0, 200)}`);
@@ -109,7 +148,9 @@ export async function getCoachingTip(payload: {
   summary: string;
   recentMeals: string;
 }): Promise<string> {
-  const data = await postJson<{ tip: string }>("/ai/coaching-tip", payload);
+  const data = await postJson<{ tip: string }>("/ai/coaching-tip", payload, {
+    openPaywall: false,
+  });
   return data.tip;
 }
 

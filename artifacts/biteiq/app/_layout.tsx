@@ -25,6 +25,7 @@ import {
 } from "@/components/FatalErrorScreen";
 import { AppProvider, useApp } from "@/context/AppContext";
 import colors from "@/constants/colors";
+import { initPurchases, resetPurchases } from "@/lib/billing/purchases";
 
 SplashScreen.preventAutoHideAsync();
 installGlobalErrorHandler();
@@ -35,10 +36,21 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 
 function AuthGate() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const { ready, user } = useApp();
   const router = useRouter();
   const segments = useSegments();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn && userId) {
+      initPurchases(userId).catch((e) =>
+        console.warn("[billing] RevenueCat init failed", e),
+      );
+    } else if (!isSignedIn) {
+      void resetPurchases();
+    }
+  }, [isLoaded, isSignedIn, userId]);
 
   useEffect(() => {
     if (!isLoaded || !ready) return;
@@ -89,6 +101,10 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="coach" options={{ headerShown: false }} />
       <Stack.Screen name="devices" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="paywall"
+        options={{ presentation: "modal", headerShown: false }}
+      />
     </Stack>
   );
 }

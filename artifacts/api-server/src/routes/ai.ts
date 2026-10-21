@@ -1,6 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
 
+import { aiAccess } from "../middlewares/aiAccess";
+
 const router: IRouter = Router();
 
 const openaiBaseUrl = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
@@ -120,7 +122,7 @@ async function parseFoodsFromMessages(
   }
 }
 
-router.post("/ai/recognize-food", async (req: Request, res: Response) => {
+router.post("/ai/recognize-food", aiAccess("photo"), async (req: Request, res: Response) => {
   try {
     const body = req.body as { imageBase64?: string };
     if (!body?.imageBase64 || typeof body.imageBase64 !== "string") {
@@ -152,7 +154,7 @@ router.post("/ai/recognize-food", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ai/parse-text", async (req: Request, res: Response) => {
+router.post("/ai/parse-text", aiAccess("text"), async (req: Request, res: Response) => {
   try {
     const body = req.body as { text?: string };
     if (!body?.text || typeof body.text !== "string") {
@@ -172,7 +174,7 @@ router.post("/ai/parse-text", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ai/search-food", async (req: Request, res: Response) => {
+router.post("/ai/search-food", aiAccess("search"), async (req: Request, res: Response) => {
   try {
     const body = req.body as { query?: string };
     if (!body?.query || typeof body.query !== "string") {
@@ -192,7 +194,7 @@ router.post("/ai/search-food", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ai/coaching-tip", async (req: Request, res: Response) => {
+router.post("/ai/coaching-tip", aiAccess("tip"), async (req: Request, res: Response) => {
   try {
     const body = req.body as { summary?: string; recentMeals?: string };
     if (!body?.summary) {
@@ -256,7 +258,7 @@ const COACH_SYSTEM =
   "(calorie/macro targets, goal, GLP-1 status). Avoid medical diagnosis; flag when a clinician " +
   "is appropriate. No emojis, no preamble. Be practical and specific.";
 
-router.post("/ai/coach-chat", async (req: Request, res: Response) => {
+router.post("/ai/coach-chat", aiAccess("coach"), async (req: Request, res: Response) => {
   try {
     const body = req.body as {
       profile?: string;
@@ -291,7 +293,7 @@ router.post("/ai/coach-chat", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ai/meal-plan", async (req: Request, res: Response) => {
+router.post("/ai/meal-plan", aiAccess("mealPlan"), async (req: Request, res: Response) => {
   try {
     const body = req.body as { profile?: string; preferences?: string };
     if (!body?.profile) {
@@ -366,7 +368,7 @@ function safeMealPlanMeals(value: unknown) {
     .filter((x): x is NonNullable<typeof x> => x !== null);
 }
 
-router.post("/ai/workout-plan", async (req: Request, res: Response) => {
+router.post("/ai/workout-plan", aiAccess("workoutPlan"), async (req: Request, res: Response) => {
   try {
     const body = req.body as {
       profile?: string;

@@ -2,6 +2,8 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 
 import { clearAll as clearHealthForUser } from "../lib/health/tokenStore";
+import { clearUsage } from "../lib/billing/usage";
+import { forgetProStatus } from "../lib/billing/entitlements";
 
 const router: IRouter = Router();
 
@@ -35,6 +37,9 @@ router.delete("/account", async (req: Request, res: Response) => {
       "health token cleanup after account deletion failed",
     );
   }
+
+  await clearUsage(userId);
+  forgetProStatus(userId);
 
   res.json({ ok: true });
 });
