@@ -20,7 +20,7 @@ import { MealTypePicker, inferMealType } from "@/components/MealTypePicker";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { recognizeFoodFromImage } from "@/lib/ai";
+import { recognizeFoodFromImage, UpgradeRequiredError } from "@/lib/ai";
 import type { FoodItem, MealType } from "@/types";
 
 export default function PhotoLog() {
@@ -45,6 +45,7 @@ export default function PhotoLog() {
       }
       setItems(result);
     } catch (err) {
+      if (err instanceof UpgradeRequiredError) return;
       const detail =
         err instanceof Error ? err.message : "Unknown error";
       console.warn("[photo] recognizeFoodFromImage failed:", detail);

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
-import { getCoachingTip } from "@/lib/ai";
+import { getCoachingTip, UpgradeRequiredError } from "@/lib/ai";
 import { profileSummaryForAI } from "@/lib/nutrition";
 import { useApp } from "@/context/AppContext";
 
@@ -32,8 +32,12 @@ export function InsightCard() {
         recentMeals: recent || "No meals logged yet today.",
       });
       setTip(result);
-    } catch {
-      setError("Coaching unavailable right now.");
+    } catch (err) {
+      setError(
+        err instanceof UpgradeRequiredError
+          ? "You've used today's free tips. BiteIQ Pro unlocks unlimited coaching."
+          : "Coaching unavailable right now.",
+      );
     } finally {
       setLoading(false);
     }

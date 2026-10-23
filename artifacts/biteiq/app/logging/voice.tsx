@@ -19,7 +19,7 @@ import { MealTypePicker, inferMealType } from "@/components/MealTypePicker";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { parseFoodFromText } from "@/lib/ai";
+import { parseFoodFromText, UpgradeRequiredError } from "@/lib/ai";
 import type { FoodItem, MealType } from "@/types";
 
 const SUGGESTIONS = [
@@ -49,7 +49,8 @@ export default function VoiceLog() {
         Alert.alert("Hmm", "Try describing what you ate in a bit more detail.");
       }
       setItems(result);
-    } catch {
+    } catch (err) {
+      if (err instanceof UpgradeRequiredError) return;
       Alert.alert("Couldn't parse", "Please try again.");
     } finally {
       setParsing(false);
